@@ -1,59 +1,25 @@
 <?php
 // src/models/ExchangeRate.php
 
-require_once __DIR__ . '/../config/db.php';
-
 class ExchangeRate {
-    /**
-     * Obtiene el tipo de cambio USD → MXN para el mes anterior (relativo a hoy).
-     * Ejemplo: si hoy es 26/nov/2025, devuelve el tipo de cambio para octubre 2025.
-     *
-     * @return float|null
-     */
-    public static function getRateForPreviousMonth(): ?float {
-        $db = Database::getInstance();
-        $conn = $db->getConnection();
+    private $db;
 
-        // Primer día del mes anterior
-        $firstDayOfPrevMonth = date('Y-m-01', strtotime('first day of last month'));
-
-        $stmt = $conn->prepare("
-            SELECT usd_to_mxn 
-            FROM exchange_rates 
-            WHERE month_year = ?
-        ");
-        $stmt->bind_param("s", $firstDayOfPrevMonth);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        if ($row = $result->fetch_assoc()) {
-            return (float)$row['usd_to_mxn'];
-        }
-
-        error_log("[ExchangeRate] No rate found for month: $firstDayOfPrevMonth");
-        return null;
+    public function __construct() {
+        $database = Database::getInstance();
+        $this->db = $database->getConnection();
     }
 
-    /**
-     * Guarda o actualiza un tipo de cambio. 
-     * Nota: el valor ya debe estar en formato USD → MXN (ej. 18.35).
-     *
-     * @param string $yearMonth (formato 'YYYY-MM')
-     * @param float $usdToMxn
-     * @return bool
-     */
-    public static function saveRate(string $yearMonth, float $usdToMxn): bool {
-        $db = Database::getInstance();
-        $conn = $db->getConnection();
+    public function getRateForPeriod(string $yearMonth): ?float {
+        $stmt = $this->db->prepare("SELECT rate_mxn_per_usd FROM exchange_rates WHERE period = ?");
+        $stmt->bind_param('s', $yearMonth);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        return $row ? (float) $row['rate_mxn_per_usd'] : null;
+    }
 
-        $firstDay = $yearMonth . '-01';
-
-        $stmt = $conn->prepare("
-            INSERT INTO exchange_rates (month_year, usd_to_mxn)
-            VALUES (?, ?)
-            ON DUPLICATE KEY UPDATE usd_to_mxn = ?
-        ");
-        $stmt->bind_param("sdd", $firstDay, $usdToMxn, $usdToMxn);
-        return $stmt->execute();
+    public function getLastMonthPeriod(): string {
+        $lastMonth = new DateTime('first day of last month');
+        return $lastMonth->format('Ym'); // Ej: '202510'
     }
 }

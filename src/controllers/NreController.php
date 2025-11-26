@@ -1,197 +1,158 @@
 <?php
 // src/controllers/NreController.php
 
-require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../models/Nre.php';
+require_once __DIR__ . '/../models/ExchangeRate.php';
 require_once __DIR__ . '/../services/EmailService.php';
 
 class NreController {
-    /**
-     * Crea múltiples NREs desde un lote y envía un solo correo con todas las cotizaciones.
-     */
-    public static function createBatchNre(array $formData, array $fileData, int $currentUserId): array {
-        // Validar al menos un ítem
-        if (empty($formData['items']) || !is_array($formData['items'])) {
-            return ['success' => false, 'message' => 'Debe agregar al menos un ítem.'];
+    private Nre $nreModel;
+    private ExchangeRate $exchangeRateModel;
+    private EmailService $emailService;
+
+    public function __construct() {
+        $this->nreModel = new Nre();
+        $this->exchangeRateModel = new ExchangeRate();
+        $this->emailService = new EmailService();
+    }
+
+    // Este método será llamado desde create.php tras el envío del formulario
+    public function createFromForm(array $items, array $quotations): bool {
+        $requesterId = 1;
+        $today = new DateTime();
+        $neededDate = clone $today;
+        $neededDate->modify('+14 days');
+
+        $period = $this->exchangeRateModel->getLastMonthPeriod();
+        $rate = $this->exchangeRateModel->getRateForPeriod($period);
+        if ($rate === null) {
+            error_log("[NreController] Tipo de cambio no encontrado para $period");
+            return false;
         }
 
-        // Validar cotizaciones
-        if (empty($fileData['quotations']['tmp_name']) || !is_array($fileData['quotations']['tmp_name'])) {
-            return ['success' => false, 'message' => 'Al menos una cotización es requerida.'];
+        $nreNumbers = [];
+        $savedFiles = [];
+
+        foreach ($items as $item) {
+            $nreNumber = Nre::generateNextNreNumber();
+            $nreNumbers[] = $nreNumber;
+
+            $priceAmount = (float) $item['price_amount'];
+            $currency = $item['price_currency'] ?? 'USD';
+
+            if ($currency === 'USD') {
+                $unitPriceUsd = $priceAmount;
+                $unitPriceMxn = round($priceAmount * $rate, 2);
+            } else { // MXN
+                $unitPriceMxn = $priceAmount;
+                $unitPriceUsd = round($priceAmount / $rate, 2);
+            }
+
+            $this->nreModel->create([
+                'nre_number' => $nreNumber,
+                'requester_id' => $requesterId,
+                'item_description' => $item['item_description'],
+                'item_code' => $item['item_code'] ?? null,
+                'operation' => $item['operation'] ?? null,
+                'customizer' => $item['customizer'] ?? null,
+                'brand' => $item['brand'] ?? null,
+                'model' => $item['model'] ?? null,
+                'new_or_replace' => $item['new_or_replace'] ?? 'New',
+                'quantity' => (int) ($item['quantity'] ?? 1),
+                'unit_price_usd' => $unitPriceUsd,
+                'unit_price_mxn' => $unitPriceMxn,
+                'needed_date' => $neededDate->format('Y-m-d'),
+                'reason' => $item['reason'] ?? null,
+                'quotation_filename' => null,
+                'status' => 'Draft'
+            ]);
         }
 
-        // Cargar solicitante
-        try {
-            $requester = new User($currentUserId);
-        } catch (Exception $e) {
-            return ['success' => false, 'message' => 'Solicitante no válido.'];
-        }
-
-        if (!$requester->canCreateNre()) {
-            return ['success' => false, 'message' => 'No tienes permiso para crear NREs.'];
-        }
-
-        // Guardar cotizaciones (una vez, para todo el lote)
-        $savedQuotationPaths = [];
-        foreach ($fileData['quotations']['tmp_name'] as $index => $tmpPath) {
-            if (!is_uploaded_file($tmpPath)) continue;
-
-            $ext = strtolower(pathinfo($fileData['quotations']['name'][$index], PATHINFO_EXTENSION));
-            if (!in_array($ext, ['pdf', 'jpg', 'jpeg', 'png'])) continue;
-
-            $safeName = uniqid('quot_', true) . '.' . $ext;
-            $uploadDir = __DIR__ . '/../../uploads/quotations/';
-            $fullPath = $uploadDir . $safeName;
-
-            if (move_uploaded_file($tmpPath, $fullPath)) {
-                $savedQuotationPaths[] = $fullPath;
+        // Guardar cotizaciones
+        if (!empty($_FILES['quotations']['tmp_name'][0])) {
+            foreach ($_FILES['quotations']['tmp_name'] as $index => $tmpName) {
+                if (!empty($tmpName) && $_FILES['quotations']['error'][$index] === UPLOAD_ERR_OK) {
+                    $originalName = $_FILES['quotations']['name'][$index];
+                    $safeName = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
+                    $targetPath = __DIR__ . '/../../uploads/quotations/' . $safeName;
+                    if (move_uploaded_file($tmpName, $targetPath)) {
+                        $savedFiles[] = $targetPath;
+                    }
+                }
             }
         }
 
-        if (empty($savedQuotationPaths)) {
-            return ['success' => false, 'message' => 'No se pudieron guardar las cotizaciones.'];
-        }
+        // ✅ Corrección: eliminar parámetro con nombre inválido
+        $emailBody = $this->generateEmailPreview($items, $rate, $nreNumbers);
+        $subject = "Purchase Request Approval – NREs " . implode(', ', $nreNumbers);
+        return $this->emailService->sendApprovalRequest($subject, $emailBody, $savedFiles);
+    }
 
-        // Crear cada NRE
-        $createdNres = [];
-        foreach ($formData['items'] as $itemData) {
-            if (empty($itemData['item_description']) || empty($itemData['unit_price_usd'])) continue;
+    private function generateEmailPreview(array $items, float $rate, array $nreNumbers): string {
+        $html = "<p>Hi Kevin,<br>Could you please approve the following purchase request(s)?<br><br>Thank you in advance for your support.<br>If you need any further information, please let me know.<br><br>Best regards,<br>Jesús Muro</p>";
 
-            $data = [
-                'requester_id' => $currentUserId,
-                'item_description' => $itemData['item_description'],
-                'item_code' => $itemData['item_code'] ?? null,
-                'project_code' => $formData['project_code'] ?? '00114',
-                'department' => $formData['department'] ?? 'PRODUCTION',
-                'operation' => $itemData['operation'] ?? null,
-                'customizer' => null,
-                'brand' => null,
-                'model' => null,
-                'new_or_replace' => null,
-                'quantity' => (int)($itemData['quantity'] ?? 1),
-                'unit_price_usd' => (float)$itemData['unit_price_usd'],
-                'needed_date' => $formData['needed_date'] ?? date('Y-m-d', strtotime('+2 weeks')),
-                'reason' => $formData['reason'] ?? 'All areas',
-                'quotation_temp_path' => $savedQuotationPaths[0] // Usa la primera cotización para el registro
-            ];
+        $html .= "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse:collapse;'>";
+        $html .= "<thead><tr>
+            <th>NRE No.</th>
+            <th>Owner</th>
+            <th>Request date</th>
+            <th>Item</th>
+            <th>Code item</th>
+            <th>Application reason / Area</th>
+            <th>Operation</th>
+            <th>Customizer</th>
+            <th>Brand</th>
+            <th>Model</th>
+            <th>New or replace</th>
+            <th>Qty required</th>
+            <th>Quotation Unit Price (MXN)</th>
+            <th>Total amount (MXN)</th>
+            <th>Amount (USD)</th>
+            <th>Total (USD)</th>
+        </tr></thead><tbody>";
 
-            $nre = Nre::createSingle($data, $savedQuotationPaths[0]); // Método auxiliar (ver abajo)
-            if ($nre) {
-                $createdNres[] = $nre;
+        foreach ($items as $index => $item) {
+            $qty = (int) ($item['quantity'] ?? 1);
+            $priceAmount = (float) $item['price_amount'];
+            $currency = $item['price_currency'] ?? 'USD';
+
+            if ($currency === 'USD') {
+                $unitUsd = $priceAmount;
+                $unitMxn = round($priceAmount * $rate, 2);
+            } else {
+                $unitMxn = $priceAmount;
+                $unitUsd = round($priceAmount / $rate, 2);
             }
-        }
 
-        if (empty($createdNres)) {
-            return ['success' => false, 'message' => 'No se creó ningún NRE.'];
-        }
+            $totalMxn = round($qty * $unitMxn, 2);
+            $totalUsd = round($qty * $unitUsd, 2);
 
-        // Enviar correo (solo a ti en pruebas)
-        $emailService = new EmailService();
-        $htmlBody = self::buildBatchEmailBody($createdNres, $requester);
-        $sent = $emailService->sendNreNotification(
-            $requester->getEmail(),
-            $requester->getFullName(),
-            ['jesus.muro@xinya-la.com'], // Solo tu correo en pruebas
-            "NREs Creados – " . count($createdNres) . " ítems",
-            $htmlBody,
-            $savedQuotationPaths
-        );
+            $nre = $nreNumbers[$index] ?? '—';
+            $requestDate = date('m/d/Y');
 
-        return ['success' => true, 'message' => 'Se crearon ' . count($createdNres) . ' NREs y se envió notificación.'];
-    }
-
-    // Método auxiliar: crear un solo NRE sin subir archivo (el archivo ya está guardado)
-    public static function createSingle(array $data, string $quotationFilename): ?Nre {
-        $db = Database::getInstance();
-        $conn = $db->getConnection();
-
-        $exchangeRate = ExchangeRate::getRateForPreviousMonth();
-        if ($exchangeRate === null) return null;
-
-        $unitPriceMxn = round($data['unit_price_usd'] / $exchangeRate, 2);
-        $nreNumber = self::generateNreNumber($conn);
-
-        $stmt = $conn->prepare("
-            INSERT INTO nres (
-                nre_number, requester_id, item_description, item_code, project_code,
-                department, operation, customizer, brand, model, new_or_replace,
-                quantity, unit_price_usd, unit_price_mxn, needed_date,
-                reason, quotation_filename, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft')
-        ");
-
-        $stmt->bind_param(
-            "sissssssssssisdds",
-            $nreNumber,
-            $data['requester_id'],
-            $data['item_description'],
-            $data['item_code'] ?? null,
-            $data['project_code'] ?? '00114',
-            $data['department'] ?? 'PRODUCTION',
-            $data['operation'] ?? null,
-            $data['customizer'] ?? null,
-            $data['brand'] ?? null,
-            $data['model'] ?? null,
-            $data['new_or_replace'] ?? null,
-            $data['quantity'],
-            $data['unit_price_usd'],
-            $unitPriceMxn,
-            $data['needed_date'],
-            $data['reason'] ?? null,
-            basename($quotationFilename)
-        );
-
-        if ($stmt->execute()) {
-            return new Nre($stmt->insert_id);
-        }
-        return null;
-    }
-
-    private static function generateNreNumber($conn): string {
-        $datePart = date('Ymd');
-        $stmt = $conn->prepare("SELECT nre_number FROM nres WHERE nre_number LIKE ? ORDER BY id DESC LIMIT 1");
-        $likePattern = "XY{$datePart}%";
-        $stmt->bind_param("s", $likePattern);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $counter = 1;
-        if ($row = $result->fetch_assoc()) {
-            $lastNum = (int)substr($row['nre_number'], -2);
-            $counter = $lastNum + 1;
-        }
-        return "XY{$datePart}" . str_pad($counter, 2, '0', STR_PAD_LEFT);
-    }
-
-    private static function buildBatchEmailBody(array $nres, User $requester): string {
-        $rows = '';
-        $totalUsd = 0;
-        foreach ($nres as $nre) {
-            $qty = $nre->getQuantity();
-            $unitUsd = $nre->getUnitPriceUsd();
-            $sub = $qty * $unitUsd;
-            $totalUsd += $sub;
-            $rows .= "
-            <tr>
-                <td>{$nre->getNreNumber()}</td>
-                <td>{$qty}</td>
-                <td>" . htmlspecialchars($nre->getItemDescription()) . "</td>
-                <td>" . htmlspecialchars($nre->getItemCode() ?? 'N/A') . "</td>
-                <td>\$ " . number_format($unitUsd, 2) . "</td>
-                <td>\$ " . number_format($sub, 2) . "</td>
+            $html .= "<tr>
+                <td>$nre</td>
+                <td>Jesús Muro</td>
+                <td>$requestDate</td>
+                <td>" . htmlspecialchars($item['item_description']) . "</td>
+                <td>" . htmlspecialchars($item['item_code'] ?? '') . "</td>
+                <td>" . htmlspecialchars($item['reason'] ?? 'All areas') . "</td>
+                <td>" . htmlspecialchars($item['operation'] ?? 'All areas') . "</td>
+                <td>" . htmlspecialchars($item['customizer'] ?? '') . "</td>
+                <td>" . htmlspecialchars($item['brand'] ?? '') . "</td>
+                <td>" . htmlspecialchars($item['model'] ?? '') . "</td>
+                <td>" . htmlspecialchars($item['new_or_replace'] ?? 'New') . "</td>
+                <td>$qty</td>
+                <td>\$" . number_format($unitMxn, 2) . "</td>
+                <td>\$" . number_format($totalMxn, 2) . "</td>
+                <td>\$" . number_format($unitUsd, 2) . "</td>
+                <td>\$" . number_format($totalUsd, 2) . "</td>
             </tr>";
         }
 
-        return "
-        <h3>Nuevos NREs Creados</h3>
-        <p><strong>Solicitante:</strong> {$requester->getFullName()} ({$requester->getEmail()})</p>
-        <table border='1' cellpadding='6' cellspacing='0' style='border-collapse: collapse; margin: 16px 0;'>
-            <thead><tr>
-                <th>NRE</th><th>Cant.</th><th>Descripción</th><th>Código</th><th>Precio Unit. (USD)</th><th>Subtotal (USD)</th>
-            </tr></thead>
-            <tbody>$rows</tbody>
-        </table>
-        <p><strong>Total general:</strong> \$ " . number_format($totalUsd, 2) . " USD</p>
-        <p>Adjunto(s): cotización(es) del proveedor.</p>
-        ";
+        $html .= "</tbody></table>";
+        $html .= "<p><em>Exchange rate: 1 USD = " . number_format($rate, 4) . " MXN (October 2025)</em></p>";
+
+        return $html;
     }
 }

@@ -1,33 +1,45 @@
 <?php
 // src/services/EmailService.php
 
-require_once __DIR__ . '/../../vendor/phpmailer/src/Exception.php';
 require_once __DIR__ . '/../../vendor/phpmailer/src/PHPMailer.php';
 require_once __DIR__ . '/../../vendor/phpmailer/src/SMTP.php';
+require_once __DIR__ . '/../../vendor/phpmailer/src/Exception.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 
 class EmailService {
-    private $smtpHost;
-    private $smtpUsername;
-    private $smtpPassword;
-    private $smtpPort;
-    private $smtpEncryption;
+    private $mail;
 
     public function __construct() {
-        // Cargar .env (reutiliza la misma lógica que en db.php o haz una función compartida después)
-        $this->loadEnv();
-        
-        $this->smtpHost = $_ENV['SMTP_HOST'] ?? 'localhost';
-        $this->smtpUsername = $_ENV['SMTP_USERNAME'] ?? '';
-        $this->smtpPassword = $_ENV['SMTP_PASSWORD'] ?? '';
-        $this->smtpPort = (int)($_ENV['SMTP_PORT'] ?? 465);
-        $this->smtpEncryption = $_ENV['SMTP_ENCRYPTION'] ?? 'ssl';
+        if (!isset($_ENV['SMTP_HOST'])) {
+            $this->loadEnv(__DIR__ . '/../../.env');
+        }
+
+        $this->mail = new PHPMailer(true);
+        $this->mail->SMTPDebug = 0; // Cambia a 3 si necesitas depurar
+        $this->mail->Debugoutput = function($str) {
+            file_put_contents(__DIR__ . '/../../logs/smtp_debug.log', "SMTP: $str\n", FILE_APPEND);
+        };
+
+        $this->mail->isSMTP();
+        $this->mail->Host       = $_ENV['SMTP_HOST']; // smtphz.qiye.163.com
+        $this->mail->Port       = (int)$_ENV['SMTP_PORT']; // 465
+        $this->mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Usa constante para SSL en puerto 465
+        $this->mail->SMTPAuth   = true;
+        $this->mail->AuthType   = 'LOGIN';
+        $this->mail->CharSet    = 'UTF-8';
+
+        $this->mail->Username   = $_ENV['SMTP_USERNAME'];
+        $this->mail->Password   = $_ENV['SMTP_PASSWORD'];
+
+        // From debe coincidir con Username en muchos servidores corporativos
+        $this->mail->setFrom($_ENV['SMTP_USERNAME'], 'Sistema de NREs', false);
+        $this->mail->addAddress('jesus.muro@xinya-la.com');
     }
 
-    private function loadEnv() {
-        $envFile = __DIR__ . '/../../.env';
+    private function loadEnv(string $envFile): void {
         if (file_exists($envFile)) {
             $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
             foreach ($lines as $line) {
@@ -39,70 +51,25 @@ class EmailService {
         }
     }
 
-    /**
-     * Envía un correo usando alertservice como cuenta SMTP,
-     * pero mostrando al solicitante como remitente visible.
-     *
-     * @param string $requesterEmail Correo del creador del NRE
-     * @param string $requesterName Nombre del creador
-     * @param array $to Lista de destinatarios (strings)
-     * @param string $subject
-     * @param string $htmlBody
-     * @param array $attachments Rutas absolutas de archivos a adjuntar
-     * @return bool
-     */
-    public function sendNreNotification(
-        string $requesterEmail,
-        string $requesterName,
-        array $to,
-        string $subject,
-        string $htmlBody,
-        array $attachments = []
-    ): bool {
-        $mail = new PHPMailer(true);
-
+    public function sendApprovalRequest(string $subject, string $body, array $attachments = []): bool {
         try {
-            // Configuración SMTP
-            $mail->isSMTP();
-            $mail->Host = $this->smtpHost;
-            $mail->SMTPAuth = true;
-            $mail->Username = $this->smtpUsername;
-            $mail->Password = $this->smtpPassword;
-            $mail->Port = $this->smtpPort;
+            $this->mail->Subject = $subject;
+            $this->mail->Body    = $body;
+            $this->mail->AltBody = strip_tags($body);
+            $this->mail->isHTML(true);
 
-            if ($this->smtpPort == 465) {
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // ssl
-            } elseif ($this->smtpPort == 587) {
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            }
+            // Limpiar adjuntos previos (por reutilización del objeto)
+            $this->mail->clearAttachments();
 
-            // Cuenta técnica (no visible para el usuario final)
-            $mail->setFrom($this->smtpUsername, 'Sistema de Requerimientos - Xinya');
-            
-            // El solicitante es el "Reply-To" y se muestra como remitente en el cuerpo
-            $mail->addReplyTo($requesterEmail, $requesterName);
-
-            // Destinatarios
-            foreach ($to as $email) {
-                $mail->addAddress($email);
-            }
-
-            // Asunto y cuerpo
-            $mail->Subject = $subject;
-            $mail->isHTML(true);
-            $mail->Body = $htmlBody;
-
-            // Adjuntos
-            foreach ($attachments as $filePath) {
-                if (file_exists($filePath)) {
-                    $mail->addAttachment($filePath);
+            foreach ($attachments as $path) {
+                if (file_exists($path)) {
+                    $this->mail->addAttachment($path);
                 }
             }
 
-            $mail->send();
-            return true;
+            return $this->mail->send();
         } catch (Exception $e) {
-            error_log("[EMAIL] Error: " . $e->getMessage());
+            error_log("[EmailService] Error: " . $e->getMessage());
             return false;
         }
     }
