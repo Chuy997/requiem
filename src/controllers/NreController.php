@@ -30,12 +30,12 @@ class NreController {
             return false;
         }
 
-        $nreNumbers = [];
-        $savedFiles = [];
+        // ✅ Usar números de NRE pregenerados si están en sesión
+        $nreNumbers = $_SESSION['nre_nre_numbers'] ?? [];
 
-        foreach ($items as $item) {
-            $nreNumber = Nre::generateNextNreNumber();
-            $nreNumbers[] = $nreNumber;
+        $savedFiles = [];
+        foreach ($items as $index => $item) {
+            $nreNumber = $nreNumbers[$index] ?? Nre::generateNextNreNumber();
 
             $priceAmount = (float) $item['price_amount'];
             $currency = $item['price_currency'] ?? 'USD';
@@ -82,9 +82,10 @@ class NreController {
             }
         }
 
-        // ✅ Corrección: eliminar parámetro con nombre inválido
-        $emailBody = $this->generateEmailPreview($items, $rate, $nreNumbers);
-        $subject = "Purchase Request Approval – NREs " . implode(', ', $nreNumbers);
+        // ✅ Obtener números reales para el correo
+        $finalNreNumbers = $_SESSION['nre_nre_numbers'] ?? $nreNumbers;
+        $emailBody = $this->generateEmailPreview($items, $rate, $finalNreNumbers);
+        $subject = "Purchase Request Approval – NREs " . implode(', ', $finalNreNumbers);
         return $this->emailService->sendApprovalRequest($subject, $emailBody, $savedFiles);
     }
 
@@ -107,9 +108,13 @@ class NreController {
             <th>Qty required</th>
             <th>Quotation Unit Price (MXN)</th>
             <th>Total amount (MXN)</th>
+            <th>MX total + IVA</th>
             <th>Amount (USD)</th>
             <th>Total (USD)</th>
+            <th>Total + IVA USD</th>
         </tr></thead><tbody>";
+
+        $iva = 0.16; // 16%
 
         foreach ($items as $index => $item) {
             $qty = (int) ($item['quantity'] ?? 1);
@@ -126,6 +131,8 @@ class NreController {
 
             $totalMxn = round($qty * $unitMxn, 2);
             $totalUsd = round($qty * $unitUsd, 2);
+            $totalMxnIva = round($totalMxn * (1 + $iva), 2);
+            $totalUsdIva = round($totalUsd * (1 + $iva), 2);
 
             $nre = $nreNumbers[$index] ?? '—';
             $requestDate = date('m/d/Y');
@@ -145,8 +152,10 @@ class NreController {
                 <td>$qty</td>
                 <td>\$" . number_format($unitMxn, 2) . "</td>
                 <td>\$" . number_format($totalMxn, 2) . "</td>
+                <td>\$" . number_format($totalMxnIva, 2) . "</td>
                 <td>\$" . number_format($unitUsd, 2) . "</td>
                 <td>\$" . number_format($totalUsd, 2) . "</td>
+                <td>\$" . number_format($totalUsdIva, 2) . "</td>
             </tr>";
         }
 

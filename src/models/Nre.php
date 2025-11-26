@@ -65,4 +65,42 @@ class Nre {
 
         return $prefix . $today . str_pad($nextSeq, 2, '0', STR_PAD_LEFT);
     }
+
+        public static function getNextNreNumbers(int $count): array {
+        $prefix = 'XY';
+        $today = date('Ymd');
+
+        // Obtener conexión
+        $database = Database::getInstance();
+        $db = $database->getConnection();
+
+        // Contar cuántos NREs existen HOY con este prefijo
+        $stmt = $db->prepare("SELECT COUNT(*) AS count FROM nres WHERE nre_number LIKE ?");
+        $pattern = $prefix . $today . '%';
+        $stmt->bind_param('s', $pattern);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $baseSeq = (int)$row['count'];
+
+        // Generar secuencia en memoria
+        $numbers = [];
+        for ($i = 1; $i <= $count; $i++) {
+            $seq = $baseSeq + $i;
+            $numbers[] = $prefix . $today . str_pad($seq, 2, '0', STR_PAD_LEFT);
+        }
+        return $numbers;
+    }
+
+        public function getByRequester(int $requesterId): array {
+        $stmt = $this->db->prepare("
+            SELECT * FROM nres 
+            WHERE requester_id = ? 
+            ORDER BY created_at DESC
+        ");
+        $stmt->bind_param('i', $requesterId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
 }

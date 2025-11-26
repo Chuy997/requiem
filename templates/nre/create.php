@@ -26,7 +26,7 @@ unset($_SESSION['nre_form_data'], $_SESSION['nre_form_error']);
         <div class="alert alert-danger"><?= htmlspecialchars($errorMsg) ?></div>
     <?php endif; ?>
 
-    <form action="/requiem/public/index.php?action=create" method="POST" enctype="multipart/form-data" id="nreForm">
+    <form action="/requiem/public/index.php?action=preview" method="POST" enctype="multipart/form-data" id="nreForm">
         <div id="items-container">
             <?php if (!empty($items)): ?>
                 <?php foreach ($items as $index => $item): ?>
