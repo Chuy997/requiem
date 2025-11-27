@@ -48,7 +48,7 @@ class NreController {
                 $unitPriceUsd = round($priceAmount / $rate, 2);
             }
 
-            $this->nreModel->create([
+                        $this->nreModel->create([
                 'nre_number' => $nreNumber,
                 'requester_id' => $requesterId,
                 'item_description' => $item['item_description'],
@@ -62,6 +62,7 @@ class NreController {
                 'unit_price_usd' => $unitPriceUsd,
                 'unit_price_mxn' => $unitPriceMxn,
                 'needed_date' => $neededDate->format('Y-m-d'),
+                'arrival_date' => null, // ✅
                 'reason' => $item['reason'] ?? null,
                 'quotation_filename' => null,
                 'status' => 'Draft'

@@ -1,26 +1,28 @@
 <?php
 // src/models/Nre.php
 
+require_once __DIR__ . '/../config/db.php';
+
 class Nre {
-    private $db;
+    private $connection;
 
     public function __construct() {
         $database = Database::getInstance();
-        $this->db = $database->getConnection();
+        $this->connection = $database->getConnection();
     }
 
     public function create(array $data): int {
-        $stmt = $this->db->prepare("
+        $stmt = $this->connection->prepare("
             INSERT INTO nres (
                 nre_number, requester_id, item_description, item_code, operation,
                 customizer, brand, model, new_or_replace, quantity,
-                unit_price_usd, unit_price_mxn, needed_date, reason,
+                unit_price_usd, unit_price_mxn, needed_date, arrival_date, reason,
                 quotation_filename, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $stmt->bind_param(
-            'sisssssssiddssss',
+            'sisssssssiddsssss',
             $data['nre_number'],
             $data['requester_id'],
             $data['item_description'],
@@ -34,27 +36,27 @@ class Nre {
             $data['unit_price_usd'],
             $data['unit_price_mxn'],
             $data['needed_date'],
+            $data['arrival_date'] ?? null,
             $data['reason'],
             $data['quotation_filename'],
             $data['status']
         );
 
         if ($stmt->execute()) {
-            return $this->db->insert_id;
+            return $this->connection->insert_id;
         } else {
-            error_log("[Nre::create] DB Error: " . $this->db->error);
+            error_log("[Nre::create] DB Error: " . $this->connection->error);
             throw new Exception("No se pudo crear el NRE.");
         }
     }
-        public static function generateNextNreNumber(): string {
-        $prefix = 'XY';
-        $today = date('Ymd'); // Ej: 20251126
 
-        // Obtener conexión
+    public static function generateNextNreNumber(): string {
+        $prefix = 'XY';
+        $today = date('Ymd');
+
         $database = Database::getInstance();
         $db = $database->getConnection();
 
-        // Contar cuántos NREs existen hoy con este prefijo
         $stmt = $db->prepare("SELECT COUNT(*) AS count FROM nres WHERE nre_number LIKE ?");
         $pattern = $prefix . $today . '%';
         $stmt->bind_param('s', $pattern);
@@ -66,15 +68,13 @@ class Nre {
         return $prefix . $today . str_pad($nextSeq, 2, '0', STR_PAD_LEFT);
     }
 
-        public static function getNextNreNumbers(int $count): array {
+    public static function getNextNreNumbers(int $count): array {
         $prefix = 'XY';
         $today = date('Ymd');
 
-        // Obtener conexión
         $database = Database::getInstance();
         $db = $database->getConnection();
 
-        // Contar cuántos NREs existen HOY con este prefijo
         $stmt = $db->prepare("SELECT COUNT(*) AS count FROM nres WHERE nre_number LIKE ?");
         $pattern = $prefix . $today . '%';
         $stmt->bind_param('s', $pattern);
@@ -83,7 +83,6 @@ class Nre {
         $row = $result->fetch_assoc();
         $baseSeq = (int)$row['count'];
 
-        // Generar secuencia en memoria
         $numbers = [];
         for ($i = 1; $i <= $count; $i++) {
             $seq = $baseSeq + $i;
@@ -92,8 +91,8 @@ class Nre {
         return $numbers;
     }
 
-        public function getByRequester(int $requesterId): array {
-        $stmt = $this->db->prepare("
+    public function getByRequester(int $requesterId): array {
+        $stmt = $this->connection->prepare("
             SELECT * FROM nres 
             WHERE requester_id = ? 
             ORDER BY created_at DESC
@@ -102,5 +101,35 @@ class Nre {
         $stmt->execute();
         $result = $stmt->get_result();
         return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function markAsInProcess(string $nreNumber, int $requesterId): bool {
+        $stmt = $this->connection->prepare("
+            UPDATE nres 
+            SET status = 'In Process', updated_at = NOW()
+            WHERE nre_number = ? AND requester_id = ? AND status IN ('Draft', 'Approved')
+        ");
+        $stmt->bind_param('si', $nreNumber, $requesterId);
+        return $stmt->execute() && $stmt->affected_rows > 0;
+    }
+
+    public function cancelNre(string $nreNumber, int $requesterId): bool {
+        $stmt = $this->connection->prepare("
+            UPDATE nres 
+            SET status = 'Cancelled', updated_at = NOW()
+            WHERE nre_number = ? AND requester_id = ? AND status IN ('Draft', 'Approved')
+        ");
+        $stmt->bind_param('si', $nreNumber, $requesterId);
+        return $stmt->execute() && $stmt->affected_rows > 0;
+    }
+
+    public function markAsArrived(string $nreNumber, int $requesterId, string $arrivalDate): bool {
+        $stmt = $this->connection->prepare("
+            UPDATE nres 
+            SET status = 'Arrived', arrival_date = ?, updated_at = NOW()
+            WHERE nre_number = ? AND requester_id = ? AND status = 'In Process'
+        ");
+        $stmt->bind_param('ssi', $arrivalDate, $nreNumber, $requesterId);
+        return $stmt->execute() && $stmt->affected_rows > 0;
     }
 }
