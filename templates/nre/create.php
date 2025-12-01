@@ -4,29 +4,28 @@ $items = $_SESSION['nre_form_data']['items'] ?? [];
 $hasError = !empty($_SESSION['nre_form_error']);
 $errorMsg = $_SESSION['nre_form_error'] ?? '';
 unset($_SESSION['nre_form_data'], $_SESSION['nre_form_error']);
+
+$pageTitle = 'Nuevo NRE';
+include __DIR__ . '/../components/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Nuevo NRE</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .item-row { position: relative; }
-        .btn-remove-item {
-            position: absolute; top: -10px; right: -10px; z-index: 10;
-        }
-    </style>
-</head>
-<body class="bg-light">
-<div class="container py-4">
+
+<style>
+    .item-row { position: relative; }
+    .btn-remove-item {
+        position: absolute; top: -10px; right: -10px; z-index: 10;
+    }
+</style>
+
+<div class="row">
+    <div class="col-12">
+
     <h2 class="mb-4">Crear Solicitud de Compra (NRE)</h2>
 
     <?php if ($hasError): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($errorMsg) ?></div>
     <?php endif; ?>
 
-    <form action="/requiem/public/index.php?action=preview" method="POST" enctype="multipart/form-data" id="nreForm">
+    <form action="index.php?action=preview" method="POST" enctype="multipart/form-data" id="nreForm">
         <div id="items-container">
             <?php if (!empty($items)): ?>
                 <?php foreach ($items as $index => $item): ?>
@@ -183,9 +182,10 @@ unset($_SESSION['nre_form_data'], $_SESSION['nre_form_error']);
 
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">Vista Previa y Enviar</button>
-            <a href="/requiem/public/" class="btn btn-secondary">Cancelar</a>
+            <a href="index.php" class="btn btn-secondary">Cancelar</a>
         </div>
     </form>
+    </div>
 </div>
 
 <script>
@@ -273,5 +273,4 @@ function addItemRow() {
     itemIndex++;
 }
 </script>
-</body>
-</html>
+<?php include __DIR__ . '/../components/footer.php'; ?>

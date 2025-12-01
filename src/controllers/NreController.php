@@ -3,6 +3,7 @@
 
 require_once __DIR__ . '/../models/Nre.php';
 require_once __DIR__ . '/../models/ExchangeRate.php';
+require_once __DIR__ . '/../models/User.php'; // ← Añadido
 require_once __DIR__ . '/../services/EmailService.php';
 
 class NreController {
@@ -16,9 +17,8 @@ class NreController {
         $this->emailService = new EmailService();
     }
 
-    // Este método será llamado desde create.php tras el envío del formulario
-    public function createFromForm(array $items, array $quotations): bool {
-        $requesterId = 1;
+    // Ahora acepta rutas de archivos temporales
+    public function createFromForm(array $items, array $tempFilePaths, int $user_id = 1): bool {
         $today = new DateTime();
         $neededDate = clone $today;
         $neededDate->modify('+14 days');
@@ -30,10 +30,35 @@ class NreController {
             return false;
         }
 
-        // ✅ Usar números de NRE pregenerados si están en sesión
+        // Cargar datos del usuario para nombre y email
+        try {
+            $user = new User($user_id);
+            $requesterName = $user->getFullName();
+            $requesterEmail = $user->getEmail();
+        } catch (Exception $e) {
+            error_log("[NreController] Usuario $user_id no válido: " . $e->getMessage());
+            return false;
+        }
+
         $nreNumbers = $_SESSION['nre_nre_numbers'] ?? [];
 
         $savedFiles = [];
+        // Procesar archivos temporales
+        foreach ($tempFilePaths as $tempPath) {
+            if (file_exists($tempPath)) {
+                $fileName = basename($tempPath);
+                // Quitar el prefijo uniqid temporal si se desea, o dejarlo
+                // Aquí movemos el archivo de temp a final
+                $targetPath = __DIR__ . '/../../uploads/quotations/' . $fileName;
+                
+                if (rename($tempPath, $targetPath)) {
+                    $savedFiles[] = $targetPath;
+                } else {
+                    error_log("[NreController] Error al mover archivo temporal: $tempPath");
+                }
+            }
+        }
+
         foreach ($items as $index => $item) {
             $nreNumber = $nreNumbers[$index] ?? Nre::generateNextNreNumber();
 
@@ -48,9 +73,9 @@ class NreController {
                 $unitPriceUsd = round($priceAmount / $rate, 2);
             }
 
-                        $this->nreModel->create([
+            $this->nreModel->create([
                 'nre_number' => $nreNumber,
-                'requester_id' => $requesterId,
+                'requester_id' => $user_id,
                 'item_description' => $item['item_description'],
                 'item_code' => $item['item_code'] ?? null,
                 'operation' => $item['operation'] ?? null,
@@ -62,36 +87,24 @@ class NreController {
                 'unit_price_usd' => $unitPriceUsd,
                 'unit_price_mxn' => $unitPriceMxn,
                 'needed_date' => $neededDate->format('Y-m-d'),
-                'arrival_date' => null, // ✅
+                'arrival_date' => null,
                 'reason' => $item['reason'] ?? null,
-                'quotation_filename' => null,
+                'quotation_filename' => !empty($savedFiles) ? basename($savedFiles[0]) : null, // Asocia el primer archivo
                 'status' => 'Draft'
             ]);
         }
 
-        // Guardar cotizaciones
-        if (!empty($_FILES['quotations']['tmp_name'][0])) {
-            foreach ($_FILES['quotations']['tmp_name'] as $index => $tmpName) {
-                if (!empty($tmpName) && $_FILES['quotations']['error'][$index] === UPLOAD_ERR_OK) {
-                    $originalName = $_FILES['quotations']['name'][$index];
-                    $safeName = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
-                    $targetPath = __DIR__ . '/../../uploads/quotations/' . $safeName;
-                    if (move_uploaded_file($tmpName, $targetPath)) {
-                        $savedFiles[] = $targetPath;
-                    }
-                }
-            }
-        }
-
-        // ✅ Obtener números reales para el correo
+        // Generar correo con nombre real del creador
         $finalNreNumbers = $_SESSION['nre_nre_numbers'] ?? $nreNumbers;
-        $emailBody = $this->generateEmailPreview($items, $rate, $finalNreNumbers);
+        $emailBody = $this->generateEmailPreview($items, $rate, $finalNreNumbers, $requesterName);
         $subject = "Purchase Request Approval – NREs " . implode(', ', $finalNreNumbers);
-        return $this->emailService->sendApprovalRequest($subject, $emailBody, $savedFiles);
+
+        // ✅ El EmailService debe usar $requesterEmail como remitente (tu implementación actual lo soporta si está configurado)
+        return $this->emailService->sendApprovalRequest($subject, $emailBody, $savedFiles, $requesterEmail);
     }
 
-    private function generateEmailPreview(array $items, float $rate, array $nreNumbers): string {
-        $html = "<p>Hi Kevin,<br>Could you please approve the following purchase request(s)?<br><br>Thank you in advance for your support.<br>If you need any further information, please let me know.<br><br>Best regards,<br>Jesús Muro</p>";
+    private function generateEmailPreview(array $items, float $rate, array $nreNumbers, string $requesterName): string {
+        $html = "<p>Hi Kevin,<br>Could you please approve the following purchase request(s)?<br><br>Thank you in advance for your support.<br>If you need any further information, please let me know.<br><br>Best regards,<br>" . htmlspecialchars($requesterName) . "</p>";
 
         $html .= "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse:collapse;'>";
         $html .= "<thead><tr>
@@ -115,7 +128,7 @@ class NreController {
             <th>Total + IVA USD</th>
         </tr></thead><tbody>";
 
-        $iva = 0.16; // 16%
+        $iva = 0.16;
 
         foreach ($items as $index => $item) {
             $qty = (int) ($item['quantity'] ?? 1);
@@ -140,7 +153,7 @@ class NreController {
 
             $html .= "<tr>
                 <td>$nre</td>
-                <td>Jesús Muro</td>
+                <td>" . htmlspecialchars($requesterName) . "</td>
                 <td>$requestDate</td>
                 <td>" . htmlspecialchars($item['item_description']) . "</td>
                 <td>" . htmlspecialchars($item['item_code'] ?? '') . "</td>
@@ -161,7 +174,7 @@ class NreController {
         }
 
         $html .= "</tbody></table>";
-        $html .= "<p><em>Exchange rate: 1 USD = " . number_format($rate, 4) . " MXN (October 2025)</em></p>";
+        $html .= "<p><em>Exchange rate: 1 USD = " . number_format($rate, 4) . " MXN</em></p>";
 
         return $html;
     }

@@ -1,129 +1,187 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Mis NREs</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .status-draft { color: #6c757d; }
-        .status-approved { color: #198754; }
-        .status-inprocess { color: #0d6efd; }
-        .status-arrived { color: #6f42c1; }
-        .status-cancelled { color: #dc3545; }
-    </style>
-</head>
-<body class="bg-light">
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Mis NREs</h2>
-        <div class="d-flex gap-2">
-            <a href="/requiem/public/?action=new" class="btn btn-primary">+ Nuevo NRE</a>
-            <?php if (!isset($_GET['show_completed'])): ?>
-                <a href="/requiem/public/?show_completed=1" class="btn btn-outline-secondary">Ver Completados</a>
-            <?php else: ?>
-                <a href="/requiem/public/" class="btn btn-outline-secondary">Ocultar Completados</a>
-            <?php endif; ?>
-        </div>
-    </div>
+<?php
+// templates/nre/list.php
+// Lista de NREs del usuario con header global
 
-    <?php if (empty($nres)): ?>
-        <div class="alert alert-info">No tienes NREs en este estado.</div>
-    <?php else: ?>
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>NRE</th>
-                        <th>Item</th>
-                        <th>Código</th>
-                        <th>Qty</th>
-                        <th>Customizer</th>
-                        <th>Operation</th>
-                        <th>Estado</th>
-                        <th>Fecha Creación</th>
-                        <th>Fecha Arribo</th>
-                        <th>Total MXN</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($nres as $nre): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($nre['nre_number']) ?></td>
-                            <td><?= htmlspecialchars($nre['item_description']) ?></td>
-                            <td><?= htmlspecialchars($nre['item_code'] ?? '') ?></td>
-                            <td><?= (int)$nre['quantity'] ?></td>
-                            <td><?= htmlspecialchars($nre['customizer'] ?? '') ?></td>
-                            <td><?= htmlspecialchars($nre['operation'] ?? '') ?></td>
-                            <td>
-                                <?php
-                                $statusClass = match($nre['status']) {
-                                    'Draft' => 'status-draft',
-                                    'Approved' => 'status-approved',
-                                    'In Process' => 'status-inprocess',
-                                    'Arrived' => 'status-arrived',
-                                    'Cancelled' => 'status-cancelled',
-                                    default => ''
-                                };
-                                ?>
-                                <span class="<?= $statusClass ?>"><?= htmlspecialchars($nre['status']) ?></span>
-                            </td>
-                            <td><?= $nre['created_at'] ? date('d/m/Y', strtotime($nre['created_at'])) : '' ?></td>
-                            <td><?= $nre['arrival_date'] ? date('d/m/Y', strtotime($nre['arrival_date'])) : '—' ?></td>
-                            <td>$<?= number_format((float)($nre['unit_price_mxn'] * $nre['quantity']), 2) ?></td>
-                            <td>
-                                <?php if ($nre['status'] === 'In Process'): ?>
-                                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#arrivalModal<?= htmlspecialchars($nre['nre_number']) ?>">
-                                        Finalizar
-                                    </button>
-                                    <div class="modal fade" id="arrivalModal<?= htmlspecialchars($nre['nre_number']) ?>" tabindex="-1">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title">Registrar recepción</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <form method="POST" action="/requiem/public/index.php?action=mark_arrived">
-                                                    <div class="modal-body">
-                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
-                                                        <label class="form-label">Fecha de recepción</label>
-                                                        <input type="date" name="arrival_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                                        <button type="submit" class="btn btn-success">Confirmar</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                <?php elseif (in_array($nre['status'], ['Draft', 'Approved'])): ?>
-                                    <form method="POST" action="/requiem/public/index.php?action=mark_in_process" style="display:inline;" class="d-inline">
-                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline-primary"
-                                                onclick="return confirm('¿Confirmar que ya está en SAP?');">
-                                            En SAP
-                                        </button>
-                                    </form>
-                                    <form method="POST" action="/requiem/public/index.php?action=cancel" style="display:inline;" class="d-inline">
-                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('¿Cancelar este NRE?');">
-                                            Cancelar
-                                        </button>
-                                    </form>
-                                <?php else: ?>
-                                    <span class="text-muted">—</span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+$pageTitle = 'Mis NREs';
+include __DIR__ . '/../components/header.php';
+
+// Verificar si el usuario puede editar (admin o creador en Draft)
+$canEditNre = function($nre) use ($currentUser) {
+    $nreModel = new Nre();
+    return $nreModel->canEdit($nre['nre_number'], $currentUser->getId(), $currentUser->isAdmin());
+};
+?>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-list-ul"></i> Mis NREs</h2>
+            <div class="d-flex gap-2">
+                <a href="index.php?action=new" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Nuevo NRE
+                </a>
+                <?php if (!isset($_GET['show_completed'])): ?>
+                    <a href="index.php?show_completed=1" class="btn btn-outline-secondary">
+                        <i class="bi bi-eye"></i> Ver Completados
+                    </a>
+                <?php else: ?>
+                    <a href="index.php" class="btn btn-outline-secondary">
+                        <i class="bi bi-eye-slash"></i> Ocultar Completados
+                    </a>
+                <?php endif; ?>
+            </div>
         </div>
-    <?php endif; ?>
+        
+        <?php if (empty($nres)): ?>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No tienes NREs en este estado.
+            </div>
+        <?php else: ?>
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>NRE</th>
+                                    <th>Item</th>
+                                    <th>Código</th>
+                                    <th>Qty</th>
+                                    <th>Customizer</th>
+                                    <th>Operation</th>
+                                    <th>Estado</th>
+                                    <th>Fecha Creación</th>
+                                    <th>Fecha Arribo</th>
+                                    <th>Total MXN</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($nres as $nre): ?>
+                                    <tr>
+                                        <td>
+                                            <code><?= htmlspecialchars($nre['nre_number']) ?></code>
+                                        </td>
+                                        <td>
+                                            <small><?= htmlspecialchars(substr($nre['item_description'], 0, 50)) ?><?= strlen($nre['item_description']) > 50 ? '...' : '' ?></small>
+                                        </td>
+                                        <td><?= htmlspecialchars($nre['item_code'] ?? '') ?></td>
+                                        <td><?= (int)$nre['quantity'] ?></td>
+                                        <td>
+                                            <small><?= htmlspecialchars($nre['customizer'] ?? '') ?></small>
+                                        </td>
+                                        <td>
+                                            <small><?= htmlspecialchars($nre['operation'] ?? '') ?></small>
+                                        </td>
+                                        <td>
+                                            <?php
+                                            $statusBadge = [
+                                                'Draft' => 'secondary',
+                                                'Approved' => 'primary',
+                                                'In Process' => 'warning',
+                                                'Arrived' => 'success',
+                                                'Cancelled' => 'danger'
+                                            ];
+                                            $badgeClass = $statusBadge[$nre['status']] ?? 'secondary';
+                                            ?>
+                                            <span class="badge bg-<?= $badgeClass ?>">
+                                                <?= htmlspecialchars($nre['status']) ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small><?= $nre['created_at'] ? date('d/m/Y', strtotime($nre['created_at'])) : '' ?></small>
+                                        </td>
+                                        <td>
+                                            <small><?= $nre['arrival_date'] ? date('d/m/Y', strtotime($nre['arrival_date'])) : '—' ?></small>
+                                        </td>
+                                        <td>
+                                            <strong>$<?= number_format((float)($nre['unit_price_mxn'] * $nre['quantity']), 2) ?></strong>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <?php if ($canEditNre($nre)): ?>
+                                                    <a href="edit-nre.php?nre=<?= urlencode($nre['nre_number']) ?>" 
+                                                       class="btn btn-outline-primary"
+                                                       title="Editar">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                <?php endif; ?>
+                                                
+                                                <?php if ($nre['status'] === 'In Process'): ?>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-success" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#arrivalModal<?= htmlspecialchars($nre['nre_number']) ?>"
+                                                            title="Finalizar">
+                                                        <i class="bi bi-check-circle"></i>
+                                                    </button>
+                                                    
+                                                    <!-- Modal Finalizar -->
+                                                    <div class="modal fade" id="arrivalModal<?= htmlspecialchars($nre['nre_number']) ?>" tabindex="-1">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                                <div class="modal-header bg-success text-white">
+                                                                    <h5 class="modal-title">
+                                                                        <i class="bi bi-check-circle"></i> Registrar Recepción
+                                                                    </h5>
+                                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <form method="POST" action="index.php?action=mark_arrived">
+                                                                    <div class="modal-body">
+                                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
+                                                                        <div class="mb-3">
+                                                                            <label class="form-label">Fecha de Recepción</label>
+                                                                            <input type="date" name="arrival_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                                                                        </div>
+                                                                        <div class="alert alert-info">
+                                                                            <i class="bi bi-info-circle"></i>
+                                                                            <strong>NRE:</strong> <?= htmlspecialchars($nre['nre_number']) ?><br>
+                                                                            <strong>Item:</strong> <?= htmlspecialchars($nre['item_description']) ?>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                                        <button type="submit" class="btn btn-success">
+                                                                            <i class="bi bi-check-circle"></i> Confirmar Recepción
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                <?php elseif (in_array($nre['status'], ['Draft', 'Approved'])): ?>
+                                                    <form method="POST" action="index.php?action=mark_in_process" class="d-inline">
+                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
+                                                        <button type="submit" 
+                                                                class="btn btn-outline-info"
+                                                                onclick="return confirm('¿Confirmar que ya está en SAP?');"
+                                                                title="Marcar como En SAP">
+                                                            <i class="bi bi-arrow-right-circle"></i>
+                                                        </button>
+                                                    </form>
+                                                    
+                                                    <form method="POST" action="index.php?action=cancel" class="d-inline">
+                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
+                                                        <button type="submit" 
+                                                                class="btn btn-outline-danger"
+                                                                onclick="return confirm('¿Cancelar este NRE?');"
+                                                                title="Cancelar NRE">
+                                                            <i class="bi bi-x-circle"></i>
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+<?php include __DIR__ . '/../components/footer.php'; ?>

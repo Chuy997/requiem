@@ -323,7 +323,7 @@ Generación de PDF para SAP
 Alta
 1.2 (Q2 2026)
 	
-Panel de aprobadores (Kevin/Pedro/César)
+Panel de aprobadores (Kevin)
 	
 Media
 2.0 (Q3 2026)

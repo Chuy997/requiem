@@ -51,8 +51,11 @@ class EmailService {
         }
     }
 
-    public function sendApprovalRequest(string $subject, string $body, array $attachments = []): bool {
+    public function sendApprovalRequest(string $subject, string $body, array $attachments = [], ?string $replyTo = null): bool {
         try {
+            if ($replyTo) {
+                $this->mail->addReplyTo($replyTo);
+            }
             $this->mail->Subject = $subject;
             $this->mail->Body    = $body;
             $this->mail->AltBody = strip_tags($body);

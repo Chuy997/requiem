@@ -1,0 +1,297 @@
+/* public/assets/css/laravel-theme.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+    /* Paleta Slate & Indigo - Sobria y Profesional */
+    --primary: #4F46E5;
+    /* Indigo 600 */
+    --primary-hover: #4338CA;
+    /* Indigo 700 */
+    --primary-light: #E0E7FF;
+    /* Indigo 100 */
+
+    --bg-body: #F8FAFC;
+    /* Slate 50 */
+    --bg-card: #FFFFFF;
+
+    --text-main: #334155;
+    /* Slate 700 */
+    --text-heading: #1E293B;
+    /* Slate 800 */
+    --text-muted: #64748B;
+    /* Slate 500 */
+
+    --border-color: #E2E8F0;
+    /* Slate 200 */
+    --input-bg: #F8FAFC;
+
+    /* Estados Semánticos Suaves */
+    --success-bg: #DCFCE7;
+    --success-text: #166534;
+    --warning-bg: #FEF3C7;
+    --warning-text: #92400E;
+    --danger-bg: #FEE2E2;
+    --danger-text: #991B1B;
+    --info-bg: #E0F2FE;
+    --info-text: #075985;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+
+    --radius: 0.75rem;
+    /* 12px */
+}
+
+body {
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--text-heading);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    /* Tight tracking for modern feel */
+}
+
+a {
+    color: var(--primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+a:hover {
+    color: var(--primary-hover);
+}
+
+/* --- Componentes: Tarjetas --- */
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+    /* No transform on hover to keep it sober, maybe just shadow */
+}
+
+.card-header {
+    background-color: transparent;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem;
+}
+
+.card-header h5 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-heading);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* --- Componentes: Botones --- */
+.btn {
+    font-weight: 500;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: white;
+    box-shadow: 0 1px 2px 0 rgba(79, 70, 229, 0.3);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: white;
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-body);
+    border-color: #CBD5E1;
+    color: var(--text-heading);
+}
+
+.btn-outline-success {
+    color: var(--success-text);
+    border-color: var(--success-bg);
+    background-color: var(--success-bg);
+}
+
+.btn-outline-success:hover {
+    background-color: #bbf7d0;
+    /* slightly darker green bg */
+    border-color: #bbf7d0;
+    color: var(--success-text);
+}
+
+/* --- Componentes: Inputs --- */
+.form-control,
+.form-select {
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.625rem 1rem;
+    color: var(--text-heading);
+    transition: all 0.2s;
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: white;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    outline: none;
+}
+
+.form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+/* --- Componentes: Tablas --- */
+.table {
+    color: var(--text-main);
+}
+
+.table thead th {
+    background-color: var(--bg-body);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+}
+
+.table tbody td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background-color: var(--bg-body);
+}
+
+/* --- Componentes: Badges --- */
+.badge {
+    padding: 0.35em 0.8em;
+    font-weight: 500;
+    border-radius: 9999px;
+    /* Pill shape */
+    font-size: 0.75rem;
+}
+
+.bg-primary {
+    background-color: var(--info-bg) !important;
+    color: var(--info-text);
+}
+
+.bg-success {
+    background-color: var(--success-bg) !important;
+    color: var(--success-text);
+}
+
+.bg-warning {
+    background-color: var(--warning-bg) !important;
+    color: var(--warning-text);
+}
+
+.bg-danger {
+    background-color: var(--danger-bg) !important;
+    color: var(--danger-text);
+}
+
+.bg-secondary {
+    background-color: var(--bg-body) !important;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+}
+
+/* --- Navbar --- */
+.navbar {
+    background-color: white !important;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 0;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    color: var(--text-heading) !important;
+    font-size: 1.25rem;
+    letter-spacing: -0.025em;
+}
+
+.nav-link {
+    color: var(--text-muted) !important;
+    font-weight: 500;
+    font-size: 0.95rem;
+    padding: 0.5rem 1rem !important;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    color: var(--primary) !important;
+    background-color: var(--primary-light);
+}
+
+/* --- Login Page --- */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #F8FAFC 0%, #E0E7FF 100%);
+}
+
+.login-logo {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(45deg, var(--text-heading), var(--primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 2rem;
+    letter-spacing: -0.05em;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 420px;
+    background: white;
+    padding: 2.5rem;
+    border-radius: 1rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}

@@ -11,23 +11,40 @@ class NreListController {
         $this->nreModel = new Nre();
     }
 
-    public function listMyNres(int $requesterId, bool $includeCompleted = false): array {
+    public function listNres(int $userId, bool $isAdmin, bool $includeCompleted = false): array {
         $statuses = $includeCompleted 
             ? ['Draft','Approved','In Process','Arrived','Cancelled']
             : ['Draft','Approved','In Process'];
         
         $placeholders = str_repeat('?,', count($statuses) - 1) . '?';
-        $sql = "SELECT * FROM nres 
-                WHERE requester_id = ? AND status IN ($placeholders)
-                ORDER BY created_at DESC";
         
         $database = Database::getInstance();
         $db = $database->getConnection();
+
+        if ($isAdmin) {
+            // Admin ve todo
+            $sql = "SELECT n.*, u.full_name as requester_name 
+                    FROM nres n
+                    LEFT JOIN users u ON n.requester_id = u.id
+                    WHERE n.status IN ($placeholders)
+                    ORDER BY n.created_at DESC";
+            $stmt = $db->prepare($sql);
+            $types = str_repeat('s', count($statuses));
+            $stmt->bind_param($types, ...$statuses);
+        } else {
+            // Engineer solo ve lo suyo
+            $sql = "SELECT n.*, u.full_name as requester_name 
+                    FROM nres n
+                    LEFT JOIN users u ON n.requester_id = u.id
+                    WHERE n.requester_id = ? AND n.status IN ($placeholders)
+                    ORDER BY n.created_at DESC";
+            $stmt = $db->prepare($sql);
+            // Agregar userId al inicio de params
+            $params = array_merge([$userId], $statuses);
+            $types = 'i' . str_repeat('s', count($statuses));
+            $stmt->bind_param($types, ...$params);
+        }
         
-        $stmt = $db->prepare($sql);
-        array_unshift($statuses, $requesterId); // requesterId es el primer parámetro
-        $types = 'i' . str_repeat('s', count($statuses) - 1);
-        $stmt->bind_param($types, ...$statuses);
         $stmt->execute();
         $result = $stmt->get_result();
         return $result->fetch_all(MYSQLI_ASSOC);
