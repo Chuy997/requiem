@@ -36,7 +36,9 @@ class EmailService {
 
         // From debe coincidir con Username en muchos servidores corporativos
         $this->mail->setFrom($_ENV['SMTP_USERNAME'], 'Sistema de NREs', false);
-        $this->mail->addAddress('jesus.muro@xinya-la.com');
+        $this->mail->addAddress('jesus.muro@xinya-la.com',);
+        $this->mail->addAddress('cesar.gutierrez@xinya-la.com',);
+        
     }
 
     private function loadEnv(string $envFile): void {

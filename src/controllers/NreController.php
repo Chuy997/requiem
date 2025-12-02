@@ -23,11 +23,14 @@ class NreController {
         $neededDate = clone $today;
         $neededDate->modify('+14 days');
 
-        $period = $this->exchangeRateModel->getLastMonthPeriod();
-        $rate = $this->exchangeRateModel->getRateForPeriod($period);
+        // Validar que existe el tipo de cambio del mes ACTUAL
+        $currentPeriod = $this->exchangeRateModel->getCurrentMonthPeriod();
+        $currentMonth = $today->format('F Y'); // Ej: "December 2025"
+        $rate = $this->exchangeRateModel->getRateForPeriod($currentPeriod);
+        
         if ($rate === null) {
-            error_log("[NreController] Tipo de cambio no encontrado para $period");
-            return false;
+            error_log("[NreController] Tipo de cambio no encontrado para el período actual: $currentPeriod");
+            throw new \Exception("No se puede crear el NRE. El tipo de cambio para $currentMonth aún no está configurado. Por favor, configure el tipo de cambio del mes en curso antes de continuar.");
         }
 
         // Cargar datos del usuario para nombre y email

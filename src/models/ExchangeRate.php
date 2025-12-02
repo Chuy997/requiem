@@ -21,9 +21,14 @@ class ExchangeRate {
         return $row ? (float) $row['rate_mxn_per_usd'] : null;
     }
 
+    public function getCurrentMonthPeriod(): string {
+        $currentMonth = new DateTime();
+        return $currentMonth->format('Ym'); // Ej: '202512'
+    }
+    
+    // Método legacy mantenido por compatibilidad
     public function getLastMonthPeriod(): string {
-        $lastMonth = new DateTime('first day of last month');
-        return $lastMonth->format('Ym'); // Ej: '202510'
+        return $this->getCurrentMonthPeriod();
     }
 
     public function getAllRates(): array {

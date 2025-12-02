@@ -12,7 +12,6 @@ class Nre {
     }
 
     public function create(array $data): int {
-        // Asegurar que created_at esté presente
         $createdAt = date('Y-m-d H:i:s');
 
         $stmt = $this->connection->prepare("
@@ -24,7 +23,6 @@ class Nre {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
-        // Manejar arrival_date como null si no está definido
         $arrivalDate = $data['arrival_date'] ?? null;
         $quotationFilename = $data['quotation_filename'] ?? null;
 
@@ -112,42 +110,108 @@ class Nre {
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    public function markAsInProcess(string $nreNumber, int $requesterId): bool {
-        $stmt = $this->connection->prepare("
-            UPDATE nres 
-            SET status = 'In Process', updated_at = NOW()
-            WHERE nre_number = ? AND requester_id = ? AND status IN ('Draft', 'Approved')
-        ");
-        $stmt->bind_param('si', $nreNumber, $requesterId);
-        return $stmt->execute() && $stmt->affected_rows > 0;
+    public function markAsInProcess(string $nreNumber, int $requesterId, bool $isAdmin = false): bool {
+        if ($isAdmin) {
+            // Admin puede marcar cualquier NRE
+            $stmt = $this->connection->prepare("
+                UPDATE nres 
+                SET status = 'In Process', updated_at = NOW()
+                WHERE nre_number = ? AND status IN ('Draft', 'Approved')
+            ");
+            if (!$stmt) {
+                error_log("Prepare failed (markAsInProcess): " . $this->connection->error);
+                return false;
+            }
+            $stmt->bind_param('s', $nreNumber);
+        } else {
+            // Usuario normal solo puede marcar sus propios NREs
+            $stmt = $this->connection->prepare("
+                UPDATE nres 
+                SET status = 'In Process', updated_at = NOW()
+                WHERE nre_number = ? AND requester_id = ? AND status IN ('Draft', 'Approved')
+            ");
+            if (!$stmt) {
+                error_log("Prepare failed (markAsInProcess): " . $this->connection->error);
+                return false;
+            }
+            $stmt->bind_param('si', $nreNumber, $requesterId);
+        }
+        $executed = $stmt->execute();
+        $affected = $stmt->affected_rows;
+        if (!$executed) {
+            error_log("Execute failed (markAsInProcess): " . $stmt->error);
+        }
+        return $executed && $affected > 0;
     }
 
-    public function cancelNre(string $nreNumber, int $requesterId): bool {
-        $stmt = $this->connection->prepare("
-            UPDATE nres 
-            SET status = 'Cancelled', updated_at = NOW()
-            WHERE nre_number = ? AND requester_id = ? AND status IN ('Draft', 'Approved')
-        ");
-        $stmt->bind_param('si', $nreNumber, $requesterId);
-        return $stmt->execute() && $stmt->affected_rows > 0;
+    public function cancelNre(string $nreNumber, int $requesterId, bool $isAdmin = false): bool {
+        if ($isAdmin) {
+            // Admin puede cancelar cualquier NRE en cualquier estado excepto Arrived y Cancelled
+            $stmt = $this->connection->prepare("
+                UPDATE nres 
+                SET status = 'Cancelled', updated_at = NOW()
+                WHERE nre_number = ? AND status NOT IN ('Arrived', 'Cancelled')
+            ");
+            if (!$stmt) {
+                error_log("Prepare failed (cancelNre): " . $this->connection->error);
+                return false;
+            }
+            $stmt->bind_param('s', $nreNumber);
+        } else {
+            // Usuario normal solo puede cancelar sus propios NREs en Draft o Approved
+            $stmt = $this->connection->prepare("
+                UPDATE nres 
+                SET status = 'Cancelled', updated_at = NOW()
+                WHERE nre_number = ? AND requester_id = ? AND status IN ('Draft', 'Approved')
+            ");
+            if (!$stmt) {
+                error_log("Prepare failed (cancelNre): " . $this->connection->error);
+                return false;
+            }
+            $stmt->bind_param('si', $nreNumber, $requesterId);
+        }
+        $executed = $stmt->execute();
+        $affected = $stmt->affected_rows;
+        if (!$executed) {
+            error_log("Execute failed (cancelNre): " . $stmt->error);
+        }
+        return $executed && $affected > 0;
     }
 
-
-    public function markAsArrived(string $nreNumber, int $requesterId, string $arrivalDate): bool {
-        $stmt = $this->connection->prepare("
-            UPDATE nres 
-            SET status = 'Arrived', arrival_date = ?, updated_at = NOW()
-            WHERE nre_number = ? AND requester_id = ? AND status = 'In Process'
-        ");
-        $stmt->bind_param('ssi', $arrivalDate, $nreNumber, $requesterId);
-        return $stmt->execute() && $stmt->affected_rows > 0;
+    public function markAsArrived(string $nreNumber, int $requesterId, string $arrivalDate, bool $isAdmin = false): bool {
+        if ($isAdmin) {
+            // Admin puede finalizar cualquier NRE en estado In Process
+            $stmt = $this->connection->prepare("
+                UPDATE nres 
+                SET status = 'Arrived', arrival_date = ?, updated_at = NOW()
+                WHERE nre_number = ? AND status = 'In Process'
+            ");
+            if (!$stmt) {
+                error_log("Prepare failed (markAsArrived): " . $this->connection->error);
+                return false;
+            }
+            $stmt->bind_param('ss', $arrivalDate, $nreNumber);
+        } else {
+            // Usuario normal solo puede finalizar sus propios NREs
+            $stmt = $this->connection->prepare("
+                UPDATE nres 
+                SET status = 'Arrived', arrival_date = ?, updated_at = NOW()
+                WHERE nre_number = ? AND requester_id = ? AND status = 'In Process'
+            ");
+            if (!$stmt) {
+                error_log("Prepare failed (markAsArrived): " . $this->connection->error);
+                return false;
+            }
+            $stmt->bind_param('ssi', $arrivalDate, $nreNumber, $requesterId);
+        }
+        $executed = $stmt->execute();
+        $affected = $stmt->affected_rows;
+        if (!$executed) {
+            error_log("Execute failed (markAsArrived): " . $stmt->error);
+        }
+        return $executed && $affected > 0;
     }
 
-    // ==================== MÉTODOS DE EDICIÓN Y CONSULTA ====================
-    
-    /**
-     * Obtiene un NRE por su número
-     */
     public function getByNumber(string $nreNumber): ?array {
         $stmt = $this->connection->prepare("
             SELECT * FROM nres 
@@ -159,9 +223,6 @@ class Nre {
         return $result->fetch_assoc();
     }
     
-    /**
-     * Actualiza un NRE existente
-     */
     public function update(string $nreNumber, array $data): bool {
         $stmt = $this->connection->prepare("
             UPDATE nres 
@@ -201,9 +262,6 @@ class Nre {
         return $stmt->execute();
     }
     
-    /**
-     * Obtiene todos los NREs (para reportes)
-     */
     public function getAll(array $filters = []): array {
         $sql = "SELECT n.*, u.full_name as requester_name, u.email as requester_email
                 FROM nres n
@@ -212,6 +270,13 @@ class Nre {
         
         $params = [];
         $types = '';
+        
+        // Filtro por tipo de requerimiento
+        if (!empty($filters['requirement_type'])) {
+            $sql .= " AND n.requirement_type = ?";
+            $params[] = $filters['requirement_type'];
+            $types .= 's';
+        }
         
         if (!empty($filters['status'])) {
             if (is_array($filters['status'])) {
@@ -241,28 +306,36 @@ class Nre {
         }
         
         if (!empty($filters['requester_id'])) {
-            $sql .= " AND n.requester_id = ?";
-            $params[] = $filters['requester_id'];
-            $types .= 'i';
+            if (is_array($filters['requester_id'])) {
+                $placeholders = str_repeat('?,', count($filters['requester_id']) - 1) . '?';
+                $sql .= " AND n.requester_id IN ($placeholders)";
+                foreach ($filters['requester_id'] as $id) {
+                    $params[] = (int)$id;
+                    $types .= 'i';
+                }
+            } else {
+                $sql .= " AND n.requester_id = ?";
+                $params[] = (int)$filters['requester_id'];
+                $types .= 'i';
+            }
         }
         
         $sql .= " ORDER BY n.created_at DESC";
         
         if (!empty($params)) {
             $stmt = $this->connection->prepare($sql);
+            if ($stmt) {
             $stmt->bind_param($types, ...$params);
             $stmt->execute();
             $result = $stmt->get_result();
-        } else {
-            $result = $this->connection->query($sql);
+            return $result->fetch_all(MYSQLI_ASSOC);
         }
-        
-        return $result->fetch_all(MYSQLI_ASSOC);
     }
     
-    /**
-     * Verifica si un usuario puede editar un NRE
-     */
+    $result = $this->connection->query($sql);
+    return $result->fetch_all(MYSQLI_ASSOC);
+}
+    
     public function canEdit(string $nreNumber, int $userId, bool $isAdmin): bool {
         $nre = $this->getByNumber($nreNumber);
         
@@ -270,12 +343,10 @@ class Nre {
             return false;
         }
         
-        // Admin puede editar cualquier NRE
         if ($isAdmin) {
             return true;
         }
         
-        // El creador puede editar solo si está en Draft
         return ($nre['requester_id'] == $userId && $nre['status'] === 'Draft');
     }
 }

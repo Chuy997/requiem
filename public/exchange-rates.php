@@ -168,7 +168,7 @@ include __DIR__ . '/../templates/components/header.php';
         <div class="card shadow-sm mb-4">
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="bi bi-download"></i> Descargar Reporte</h5>
+                <h5 class="mb-0"> Historico de Tasas</h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">

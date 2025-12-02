@@ -44,13 +44,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $priceAmount = (float)$_POST['price_amount'];
         $currency = $_POST['price_currency'] ?? 'USD';
         
-        // Obtener tipo de cambio
+        // Obtener tipo de cambio del mes ACTUAL
         $exchangeRateModel = new ExchangeRate();
-        $period = $exchangeRateModel->getLastMonthPeriod();
-        $rate = $exchangeRateModel->getRateForPeriod($period);
+        $currentPeriod = $exchangeRateModel->getCurrentMonthPeriod();
+        $rate = $exchangeRateModel->getRateForPeriod($currentPeriod);
         
         if ($rate === null) {
-            throw new Exception("No hay tipo de cambio disponible para el período $period");
+            $today = new DateTime();
+            $currentMonth = $today->format('F Y'); // Ej: "December 2025"
+            throw new Exception("No se puede actualizar el NRE. El tipo de cambio para $currentMonth aún no está configurado. Por favor, configure el tipo de cambio del mes en curso antes de continuar.");
         }
         
         // Calcular precios

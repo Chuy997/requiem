@@ -84,6 +84,7 @@ if ($action === 'confirm' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {
         error_log("[Index] Error en confirm: " . $e->getMessage());
         $_SESSION['nre_form_error'] = $e->getMessage();
+        // Mantener los datos en sesión para que el usuario pueda corregir
         header('Location: ./?action=new');
         exit;
     }
@@ -93,8 +94,12 @@ if ($action === 'confirm' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'mark_in_process' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $nreNumber = $_POST['nre_number'] ?? '';
     if ($nreNumber) {
+        require_once __DIR__ . '/../src/models/User.php';
+        $currentUser = new User($user_id);
+        $isAdmin = $currentUser->isAdmin();
+        
         $listController = new NreListController();
-        if ($listController->markAsInProcess($nreNumber, $user_id)) {
+        if ($listController->markAsInProcess($nreNumber, $user_id, $isAdmin)) {
             $_SESSION['nre_message'] = "✅ NRE $nreNumber marcado como 'En Proceso'.";
         } else {
             $_SESSION['nre_error'] = "❌ No se pudo actualizar el NRE.";
@@ -107,8 +112,12 @@ if ($action === 'mark_in_process' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'cancel' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $nreNumber = $_POST['nre_number'] ?? '';
     if ($nreNumber) {
+        require_once __DIR__ . '/../src/models/User.php';
+        $currentUser = new User($user_id);
+        $isAdmin = $currentUser->isAdmin();
+        
         $listController = new NreListController();
-        if ($listController->cancelNre($nreNumber, $user_id)) {
+        if ($listController->cancelNre($nreNumber, $user_id, $isAdmin)) {
             $_SESSION['nre_message'] = "✅ NRE $nreNumber cancelado.";
         } else {
             $_SESSION['nre_error'] = "❌ No se pudo cancelar el NRE.";
@@ -122,8 +131,12 @@ if ($action === 'mark_arrived' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $nreNumber = $_POST['nre_number'] ?? '';
     $arrivalDate = $_POST['arrival_date'] ?? date('Y-m-d');
     if ($nreNumber) {
+        require_once __DIR__ . '/../src/models/User.php';
+        $currentUser = new User($user_id);
+        $isAdmin = $currentUser->isAdmin();
+        
         $listController = new NreListController();
-        if ($listController->markAsArrived($nreNumber, $user_id, $arrivalDate)) {
+        if ($listController->markAsArrived($nreNumber, $user_id, $arrivalDate, $isAdmin)) {
             $_SESSION['nre_message'] = "✅ NRE $nreNumber finalizado.";
         } else {
             $_SESSION['nre_error'] = "❌ No se pudo finalizar el NRE.";
@@ -152,8 +165,9 @@ $currentUser = new User($user_id);
 $isAdmin = $currentUser->isAdmin();
 
 $includeCompleted = isset($_GET['show_completed']);
+$type = $_GET['type'] ?? null;
 $listController = new NreListController();
-$nres = $listController->listNres($user_id, $isAdmin, $includeCompleted);
+$nres = $listController->listNres($user_id, $isAdmin, $includeCompleted, $type);
 
 // Mostrar mensajes globales
 if (!empty($_SESSION['nre_message'])) {

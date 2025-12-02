@@ -11,54 +11,36 @@ class NreListController {
         $this->nreModel = new Nre();
     }
 
-    public function listNres(int $userId, bool $isAdmin, bool $includeCompleted = false): array {
-        $statuses = $includeCompleted 
+    public function listNres(int $userId, bool $isAdmin, bool $includeCompleted = false, ?string $type = null): array {
+        $filters = [];
+        
+        // Filtro de estado
+        $filters['status'] = $includeCompleted 
             ? ['Draft','Approved','In Process','Arrived','Cancelled']
             : ['Draft','Approved','In Process'];
-        
-        $placeholders = str_repeat('?,', count($statuses) - 1) . '?';
-        
-        $database = Database::getInstance();
-        $db = $database->getConnection();
-
-        if ($isAdmin) {
-            // Admin ve todo
-            $sql = "SELECT n.*, u.full_name as requester_name 
-                    FROM nres n
-                    LEFT JOIN users u ON n.requester_id = u.id
-                    WHERE n.status IN ($placeholders)
-                    ORDER BY n.created_at DESC";
-            $stmt = $db->prepare($sql);
-            $types = str_repeat('s', count($statuses));
-            $stmt->bind_param($types, ...$statuses);
-        } else {
-            // Engineer solo ve lo suyo
-            $sql = "SELECT n.*, u.full_name as requester_name 
-                    FROM nres n
-                    LEFT JOIN users u ON n.requester_id = u.id
-                    WHERE n.requester_id = ? AND n.status IN ($placeholders)
-                    ORDER BY n.created_at DESC";
-            $stmt = $db->prepare($sql);
-            // Agregar userId al inicio de params
-            $params = array_merge([$userId], $statuses);
-            $types = 'i' . str_repeat('s', count($statuses));
-            $stmt->bind_param($types, ...$params);
+            
+        // Filtro de usuario (si no es admin)
+        if (!$isAdmin) {
+            $filters['requester_id'] = $userId;
         }
         
-        $stmt->execute();
-        $result = $stmt->get_result();
-        return $result->fetch_all(MYSQLI_ASSOC);
+        // Filtro por tipo de requerimiento
+        if ($type) {
+            $filters['requirement_type'] = $type;
+        }
+        
+        return $this->nreModel->getAll($filters);
     }
 
-    public function markAsInProcess(string $nreNumber, int $requesterId): bool {
-        return $this->nreModel->markAsInProcess($nreNumber, $requesterId);
+    public function markAsInProcess(string $nreNumber, int $userId, bool $isAdmin): bool {
+        return $this->nreModel->markAsInProcess($nreNumber, $userId, $isAdmin);
     }
 
-    public function cancelNre(string $nreNumber, int $requesterId): bool {
-        return $this->nreModel->cancelNre($nreNumber, $requesterId);
+    public function cancelNre(string $nreNumber, int $userId, bool $isAdmin): bool {
+        return $this->nreModel->cancelNre($nreNumber, $userId, $isAdmin);
     }
 
-    public function markAsArrived(string $nreNumber, int $requesterId, string $arrivalDate): bool {
-        return $this->nreModel->markAsArrived($nreNumber, $requesterId, $arrivalDate);
+    public function markAsArrived(string $nreNumber, int $userId, string $arrivalDate, bool $isAdmin): bool {
+        return $this->nreModel->markAsArrived($nreNumber, $userId, $arrivalDate, $isAdmin);
     }
 }
