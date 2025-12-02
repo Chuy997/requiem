@@ -281,6 +281,7 @@ a:hover {
     font-weight: 800;
     background: linear-gradient(45deg, var(--text-heading), var(--primary));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 2rem;
     letter-spacing: -0.05em;
