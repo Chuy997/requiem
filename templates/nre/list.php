@@ -1,5 +1,18 @@
 <?php
 // templates/nre/list.php
+
+// Obtener localidades para integración con inventario (PackR)
+$locations = [];
+if (file_exists(__DIR__ . '/../../src/services/InventoryIntegration.php')) {
+    require_once __DIR__ . '/../../src/services/InventoryIntegration.php';
+    try {
+        $invIntegration = new InventoryIntegration();
+        $locations = $invIntegration->getLocalidades();
+    } catch (Exception $e) {
+        // Ignorar error si no hay conexión al inventario
+    }
+}
+
 // Lista de NREs del usuario con header global y estadísticas
 
 $pageTitle = 'Dashboard - NREs';
@@ -377,14 +390,42 @@ foreach ($nres as $nre) {
                                                                 <form method="POST" action="index.php?action=mark_arrived">
                                                                     <div class="modal-body">
                                                                         <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
+                                                                        
+                                                                        <div class="alert alert-info">
+                                                                            <strong>NRE:</strong> <?= htmlspecialchars($nre['nre_number']) ?><br>
+                                                                            <strong>Item:</strong> <?= htmlspecialchars($nre['item_description']) ?><br>
+                                                                            <strong>Progreso:</strong> <?= $nre['quantity_received'] ?? 0 ?> / <?= $nre['quantity'] ?>
+                                                                        </div>
+
                                                                         <div class="mb-3">
                                                                             <label class="form-label">Fecha de Recepción</label>
                                                                             <input type="date" name="arrival_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
                                                                         </div>
-                                                                        <div class="alert alert-info">
-                                                                            <i class="bi bi-info-circle"></i>
-                                                                            <strong>NRE:</strong> <?= htmlspecialchars($nre['nre_number']) ?><br>
-                                                                            <strong>Item:</strong> <?= htmlspecialchars($nre['item_description']) ?>
+                                                                        
+                                                                        <div class="mb-3">
+                                                                            <label class="form-label">Cantidad Recibida</label>
+                                                                            <input type="number" name="quantity_received" class="form-control" 
+                                                                                   min="1" max="<?= $nre['quantity'] - ($nre['quantity_received'] ?? 0) ?>" 
+                                                                                   value="<?= $nre['quantity'] - ($nre['quantity_received'] ?? 0) ?>" required>
+                                                                            <div class="form-text">Dejar el valor por defecto para recibir todo lo restante.</div>
+                                                                        </div>
+                                                                        
+                                                                        <?php if ($isPackR && !empty($locations)): ?>
+                                                                        <div class="mb-3">
+                                                                            <label class="form-label">Ubicación de Almacén (Inventario)</label>
+                                                                            <select name="location" class="form-select" required>
+                                                                                <option value="">Seleccione ubicación...</option>
+                                                                                <?php foreach ($locations as $loc): ?>
+                                                                                    <option value="<?= htmlspecialchars($loc) ?>"><?= htmlspecialchars($loc) ?></option>
+                                                                                <?php endforeach; ?>
+                                                                            </select>
+                                                                            <div class="form-text text-success"><i class="bi bi-box-seam"></i> Se agregará automáticamente al inventario.</div>
+                                                                        </div>
+                                                                        <?php endif; ?>
+
+                                                                        <div class="mb-3">
+                                                                            <label class="form-label">Comentarios / Notas</label>
+                                                                            <textarea name="comments" class="form-control" rows="2" placeholder="Opcional"></textarea>
                                                                         </div>
                                                                     </div>
                                                                     <div class="modal-footer">

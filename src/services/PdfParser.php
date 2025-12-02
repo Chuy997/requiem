@@ -85,9 +85,16 @@ class PdfParser {
                 $unitPrice = (float)str_replace(',', '', $matches[5]);
                 $total = (float)str_replace(',', '', $matches[8]);
                 
+                // Extraer SKU del formato XXX-NNNNN de la descripción
+                $description = trim($matches[2]);
+                $sku = null;
+                if (preg_match('/([A-Z]{3}-\d{5})/', $description, $skuMatches)) {
+                    $sku = $skuMatches[1];
+                }
+                
                 $currentItem = [
-                    'item_code' => $matches[1],
-                    'item_description' => trim($matches[2]),
+                    'item_code' => $sku ?: $matches[1], // Usar SKU extraído o código original como fallback
+                    'item_description' => $description,
                     'needed_date' => DateTime::createFromFormat('d/m/Y', $matches[3])->format('Y-m-d'),
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
@@ -105,6 +112,12 @@ class PdfParser {
                     // Evitar agregar basura
                     if (strlen($descPart) > 0) {
                         $currentItem['item_description'] .= ' ' . $descPart;
+                        
+                        // Intentar extraer SKU de líneas adicionales si no se encontró antes
+                        if (!preg_match('/[A-Z]{3}-\d{5}/', $currentItem['item_code']) && 
+                            preg_match('/([A-Z]{3}-\d{5})/', $descPart, $skuMatches)) {
+                            $currentItem['item_code'] = $skuMatches[1];
+                        }
                     }
                 }
             }

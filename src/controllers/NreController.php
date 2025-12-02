@@ -43,6 +43,27 @@ class NreController {
             return false;
         }
 
+        // Validar límite mensual de $4000 USD para NREs
+        $currentMonthlyTotal = $this->nreModel->getMonthlyTotalUsd($user_id);
+        $newRequestTotalUsd = 0;
+        
+        foreach ($items as $item) {
+            $priceAmount = (float) $item['price_amount'];
+            $currency = $item['price_currency'] ?? 'USD';
+            $qty = (int) ($item['quantity'] ?? 1);
+            
+            if ($currency === 'USD') {
+                $newRequestTotalUsd += $priceAmount * $qty;
+            } else {
+                $newRequestTotalUsd += ($priceAmount / $rate) * $qty;
+            }
+        }
+        
+        if (($currentMonthlyTotal + $newRequestTotalUsd) > 4000) {
+            $remaining = 4000 - $currentMonthlyTotal;
+            throw new \Exception("Esta solicitud excede tu límite mensual de $4,000 USD para NREs. Has gastado $" . number_format($currentMonthlyTotal, 2) . " este mes. Disponible: $" . number_format(max(0, $remaining), 2));
+        }
+
         $nreNumbers = $_SESSION['nre_nre_numbers'] ?? [];
 
         $savedFiles = [];

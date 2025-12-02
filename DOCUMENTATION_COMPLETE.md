@@ -7,6 +7,7 @@ Requiem es un sistema de gestión de requerimientos diseñado para administrar *
 
 ### 2.1 Gestión de NREs
 - **Creación Manual**: Formulario detallado para ingresar solicitudes de NRE.
+- **Límite Mensual**: Restricción automática de **$4,000 USD** por usuario al mes. El sistema bloquea solicitudes que excedan este monto.
 - **Flujo de Aprobación**:
   - **Draft**: Estado inicial.
   - **Approved**: Aprobado por un administrador (envía notificación por correo).
@@ -17,12 +18,19 @@ Requiem es un sistema de gestión de requerimientos diseñado para administrar *
 
 ### 2.2 Gestión de PackR (Nuevo)
 - **Carga desde PDF**: Creación automática de requerimientos subiendo el PDF de Solicitud de Compra de SAP.
+- **Control de Duplicados**: El sistema verifica el número de documento SAP para evitar cargas duplicadas.
 - **Extracción Inteligente**: El sistema lee el PDF y extrae:
   - Número de documento SAP.
   - Lista de materiales (Código, Descripción, Cantidad, Precio).
   - Departamento y Proyecto.
 - **Flujo Simplificado**: Los PackR se crean directamente en estado **"In Process"**, sin necesidad de aprobación por correo.
+- **Integración Inventario**: Al marcar como recibido, el material se agrega automáticamente al sistema de almacén (selección de localidad).
 - **Visualización**: Enlace directo al PDF original desde el dashboard.
+
+### 2.3 Gestión de Recepción
+- **Recepción Parcial**: Permite registrar la llegada de una cantidad menor a la solicitada. El requerimiento permanece "In Process" hasta completar el total.
+- **Comentarios**: Opción para agregar notas o comentarios al momento de la recepción.
+- **Integración**: Para PackR, solicita la ubicación de destino y actualiza el stock en el sistema de almacén.
 
 ### 2.3 Reportes y Análisis
 - **Dashboard**: Vista general con estadísticas clave y lista de requerimientos.

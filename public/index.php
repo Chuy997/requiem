@@ -130,16 +130,20 @@ if ($action === 'cancel' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'mark_arrived' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $nreNumber = $_POST['nre_number'] ?? '';
     $arrivalDate = $_POST['arrival_date'] ?? date('Y-m-d');
+    $quantityReceived = (int)($_POST['quantity_received'] ?? 0);
+    $comments = $_POST['comments'] ?? '';
+    $location = $_POST['location'] ?? '';
+
     if ($nreNumber) {
         require_once __DIR__ . '/../src/models/User.php';
         $currentUser = new User($user_id);
         $isAdmin = $currentUser->isAdmin();
         
         $listController = new NreListController();
-        if ($listController->markAsArrived($nreNumber, $user_id, $arrivalDate, $isAdmin)) {
-            $_SESSION['nre_message'] = "✅ NRE $nreNumber finalizado.";
+        if ($listController->markAsArrived($nreNumber, $user_id, $arrivalDate, $isAdmin, $quantityReceived, $comments, $location)) {
+            $_SESSION['nre_message'] = "✅ Recepción registrada para $nreNumber.";
         } else {
-            $_SESSION['nre_error'] = "❌ No se pudo finalizar el NRE.";
+            $_SESSION['nre_error'] = "❌ No se pudo registrar la recepción.";
         }
     }
     header('Location: ./');
@@ -161,7 +165,14 @@ if ($action === 'new') {
 
 // --- Mostrar lista principal ---
 require_once __DIR__ . '/../src/models/User.php';
-$currentUser = new User($user_id);
+try {
+    $currentUser = new User($user_id);
+} catch (Exception $e) {
+    // Si el usuario no existe (ej. borrado de DB), cerrar sesión
+    session_destroy();
+    header('Location: login.php');
+    exit;
+}
 $isAdmin = $currentUser->isAdmin();
 
 $includeCompleted = isset($_GET['show_completed']);

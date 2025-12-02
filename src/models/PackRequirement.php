@@ -43,6 +43,16 @@ class PackRequirement {
                 throw new Exception("Usuario no encontrado");
             }
             
+            // Validar si el documento SAP ya existe
+            $checkStmt = $this->connection->prepare("SELECT COUNT(*) as count FROM nres WHERE sap_document_number = ? AND requirement_type = 'PackR'");
+            $checkStmt->bind_param('s', $data['sap_document_number']);
+            $checkStmt->execute();
+            $result = $checkStmt->get_result()->fetch_assoc();
+            
+            if ($result['count'] > 0) {
+                throw new Exception("El documento SAP " . $data['sap_document_number'] . " ya ha sido procesado anteriormente.");
+            }
+
             // Guardar PDF en uploads
             $uploadDir = __DIR__ . '/../../uploads/packr/';
             if (!is_dir($uploadDir)) {

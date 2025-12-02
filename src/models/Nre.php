@@ -178,38 +178,55 @@ class Nre {
         return $executed && $affected > 0;
     }
 
-    public function markAsArrived(string $nreNumber, int $requesterId, string $arrivalDate, bool $isAdmin = false): bool {
-        if ($isAdmin) {
-            // Admin puede finalizar cualquier NRE en estado In Process
-            $stmt = $this->connection->prepare("
-                UPDATE nres 
-                SET status = 'Arrived', arrival_date = ?, updated_at = NOW()
-                WHERE nre_number = ? AND status = 'In Process'
-            ");
-            if (!$stmt) {
-                error_log("Prepare failed (markAsArrived): " . $this->connection->error);
-                return false;
-            }
-            $stmt->bind_param('ss', $arrivalDate, $nreNumber);
-        } else {
-            // Usuario normal solo puede finalizar sus propios NREs
-            $stmt = $this->connection->prepare("
-                UPDATE nres 
-                SET status = 'Arrived', arrival_date = ?, updated_at = NOW()
-                WHERE nre_number = ? AND requester_id = ? AND status = 'In Process'
-            ");
-            if (!$stmt) {
-                error_log("Prepare failed (markAsArrived): " . $this->connection->error);
-                return false;
-            }
-            $stmt->bind_param('ssi', $arrivalDate, $nreNumber, $requesterId);
+    public function markAsArrived(string $nreNumber, int $requesterId, string $arrivalDate, bool $isAdmin = false, int $quantityReceived = 0, string $comments = ''): bool {
+        $nre = $this->getByNumber($nreNumber);
+        if (!$nre) return false;
+
+        // Validar permisos
+        if (!$isAdmin && $nre['requester_id'] != $requesterId) return false;
+        if ($nre['status'] !== 'In Process') return false;
+
+        $currentReceived = $nre['quantity_received'] ?? 0;
+        $totalQuantity = $nre['quantity'];
+
+        // Si quantityReceived es 0, asumimos que se recibe todo lo pendiente
+        if ($quantityReceived <= 0) {
+            $quantityReceived = $totalQuantity - $currentReceived;
         }
-        $executed = $stmt->execute();
-        $affected = $stmt->affected_rows;
-        if (!$executed) {
-            error_log("Execute failed (markAsArrived): " . $stmt->error);
+
+        $newTotalReceived = $currentReceived + $quantityReceived;
+        
+        if ($newTotalReceived > $totalQuantity) {
+             error_log("Error: Cantidad recibida excede el total.");
+             return false;
         }
-        return $executed && $affected > 0;
+
+        $newStatus = ($newTotalReceived >= $totalQuantity) ? 'Arrived' : 'In Process';
+        
+        // Concatenar comentarios
+        $newComments = $nre['closure_comments'] ?? '';
+        if ($comments || $quantityReceived > 0) {
+             $newComments .= "\n[" . date('Y-m-d H:i') . "] Recibido: $quantityReceived. Notas: $comments";
+        }
+
+        $stmt = $this->connection->prepare("
+            UPDATE nres 
+            SET status = ?, 
+                arrival_date = ?, 
+                quantity_received = ?, 
+                closure_comments = ?,
+                updated_at = NOW()
+            WHERE nre_number = ?
+        ");
+        
+        if (!$stmt) {
+             error_log("Prepare failed: " . $this->connection->error);
+             return false;
+        }
+
+        $stmt->bind_param('ssiss', $newStatus, $arrivalDate, $newTotalReceived, $newComments, $nreNumber);
+        
+        return $stmt->execute();
     }
 
     public function getByNumber(string $nreNumber): ?array {
@@ -260,6 +277,24 @@ class Nre {
         );
         
         return $stmt->execute();
+    }
+    
+    public function getMonthlyTotalUsd(int $userId): float {
+        $startOfMonth = date('Y-m-01');
+        $endOfMonth = date('Y-m-t 23:59:59');
+        
+        $stmt = $this->connection->prepare("
+            SELECT SUM(quantity * unit_price_usd) as total 
+            FROM nres 
+            WHERE requester_id = ? 
+            AND created_at BETWEEN ? AND ?
+            AND status != 'Cancelled'
+            AND requirement_type = 'NRE'
+        ");
+        $stmt->bind_param('iss', $userId, $startOfMonth, $endOfMonth);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        return (float)($result['total'] ?? 0);
     }
     
     public function getAll(array $filters = []): array {
