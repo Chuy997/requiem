@@ -38,16 +38,19 @@ if (!$nreModel->canEdit($nreNumber, $_SESSION['user_id'], $isAdmin)) {
 $error = '';
 $success = '';
 
+$exchangeRateModel = new ExchangeRate();
+$availableRates = $exchangeRateModel->getAllRates();
+$currentPeriod = $exchangeRateModel->getCurrentMonthPeriod();
+
 // Procesar actualización
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $priceAmount = (float)$_POST['price_amount'];
         $currency = $_POST['price_currency'] ?? 'USD';
         
-        // Obtener tipo de cambio del mes ACTUAL
-        $exchangeRateModel = new ExchangeRate();
-        $currentPeriod = $exchangeRateModel->getCurrentMonthPeriod();
-        $rate = $exchangeRateModel->getRateForPeriod($currentPeriod);
+        // Obtener tipo de cambio seleccionado
+        $selectedPeriod = $_POST['exchange_rate_period'] ?? $currentPeriod;
+        $rate = $exchangeRateModel->getRateForPeriod($selectedPeriod);
         
         if ($rate === null) {
             $today = new DateTime();
@@ -150,23 +153,33 @@ include __DIR__ . '/../templates/components/header.php';
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Precio Unitario *</label>
                             <div class="input-group">
                                 <input type="number" step="0.01" name="price_amount" class="form-control" 
                                        value="<?= number_format($nre['unit_price_usd'], 2, '.', '') ?>" required>
-                                <select name="price_currency" class="form-select" style="max-width:100px;">
+                                <select name="price_currency" class="form-select" style="max-width:80px;">
                                     <option value="USD" selected>USD</option>
                                     <option value="MXN">MXN</option>
                                 </select>
                             </div>
                             <small class="text-muted">
-                                Actual: $<?= number_format($nre['unit_price_usd'], 2) ?> USD / 
-                                $<?= number_format($nre['unit_price_mxn'], 2) ?> MXN
+                                Actual: $<?= number_format($nre['unit_price_usd'], 2) ?> USD
                             </small>
                         </div>
+
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Tipo de Cambio</label>
+                            <select name="exchange_rate_period" class="form-select">
+                                <?php foreach ($availableRates as $rateOption): ?>
+                                    <option value="<?= $rateOption['period'] ?>" <?= ($rateOption['period'] === $currentPeriod) ? 'selected' : '' ?>>
+                                        <?= $rateOption['period'] ?> - $<?= number_format($rateOption['rate_mxn_per_usd'], 2) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                         
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Operación</label>
                             <select name="operation" class="form-select">
                                 <option value="">Seleccionar</option>
@@ -178,7 +191,7 @@ include __DIR__ . '/../templates/components/header.php';
                             </select>
                         </div>
                         
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Fecha Necesaria *</label>
                             <input type="date" name="needed_date" class="form-control" 
                                    value="<?= $nre['needed_date'] ?>" required>

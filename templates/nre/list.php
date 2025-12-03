@@ -276,7 +276,7 @@ foreach ($nres as $nre) {
                                 <th class="text-center">Estado</th>
                                 <th>Creación</th>
                                 <th>Arribo</th>
-                                <th class="text-end">Total MXN</th>
+                                <th class="text-end">Total MXN + IVA</th>
                                 <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
@@ -341,7 +341,7 @@ foreach ($nres as $nre) {
                                         <small><?= $nre['arrival_date'] ? date('d/m/y', strtotime($nre['arrival_date'])) : '—' ?></small>
                                     </td>
                                     <td class="text-end">
-                                        <strong class="text-success" style="font-size: 0.75rem;">$<?= number_format((float)($nre['unit_price_mxn'] * $nre['quantity']), 0) ?></strong>
+                                        <strong class="text-success" style="font-size: 0.75rem;">$<?= number_format((float)($nre['unit_price_mxn'] * $nre['quantity'] * 1.16), 2) ?></strong>
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">

@@ -50,7 +50,7 @@
     </div>
 
     <div class="mt-4 text-muted" style="font-size: 0.875rem;">
-        &copy; <?= date('Y') ?> Xinya Electronics.
+        &copy; <?= date('Y') ?> Xinya Hi-Tech Latin America CO.
     </div>
 
 </body>

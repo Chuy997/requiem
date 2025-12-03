@@ -269,31 +269,33 @@ include __DIR__ . '/../templates/components/header.php';
             <div class="card-body">
                 <form method="GET" action="reports.php" class="row g-3">
                     <div class="col-md-3">
-                        <label class="form-label">Tipo</label>
-                        <select name="requirement_type" class="form-select">
-                            <option value="">Todos</option>
-                            <option value="NRE" <?= ($filters['requirement_type'] === 'NRE') ? 'selected' : '' ?>>NRE</option>
-                            <option value="PackR" <?= ($filters['requirement_type'] === 'PackR') ? 'selected' : '' ?>>PackR</option>
-                        </select>
-                    </div>
-
+    <label class="form-label">Tipo</label>
+    <select name="requirement_type" class="form-select">
+        <option value="">Todos</option>
+        <option value="NRE" <?= ($filters['requirement_type'] === 'NRE') ? 'selected' : '' ?>>NRE</option>
+        <option value="PackR" <?= ($filters['requirement_type'] === 'PackR') ? 'selected' : '' ?>>PackR</option>
+    </select>
+</div>
                     <div class="col-md-3">
                         <label class="form-label">Estado</label>
-                        <select name="status[]" class="form-select" multiple size="5">
-                            <?php 
-                            $selectedStatuses = is_array($filters['status']) ? $filters['status'] : [];
-                            if (is_string($filters['status']) && !empty($filters['status'])) {
-                                $selectedStatuses = [$filters['status']];
-                            }
-                            $options = ['Draft', 'Approved', 'In Process', 'Arrived', 'Cancelled'];
-                            foreach ($options as $opt): 
-                            ?>
-                                <option value="<?= $opt ?>" <?= in_array($opt, $selectedStatuses) ? 'selected' : '' ?>>
-                                    <?= $opt ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <small class="text-muted" style="font-size: 0.75rem;">Ctrl+Click para seleccionar varios</small>
+                        <div class="dropdown">
+    <button class="btn btn-outline-primary dropdown-toggle w-100 text-start" type="button" id="statusDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+        Seleccionar Estado
+    </button>
+    <ul class="dropdown-menu" aria-labelledby="statusDropdown">
+        <?php 
+        $options = ['Draft', 'Approved', 'In Process', 'Arrived', 'Cancelled'];
+        foreach ($options as $opt): 
+        ?>
+            <li>
+                <label class="dropdown-item">
+                    <input type="checkbox" class="form-check-input me-1" name="status[]" value="<?= $opt ?>" <?= in_array($opt, $filters['status'] ?? []) ? 'checked' : '' ?>>
+                    <?= $opt ?>
+                </label>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+</div>
                     </div>
                     
                     <div class="col-md-3">
