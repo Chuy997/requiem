@@ -1,0 +1,23 @@
+# Archivos de sistema y logs
+.DS_Store
+Thumbs.db
+*.log
+
+# PDFs e Imágenes (Excepciones solicitadas)
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.ico
+*.svg
+
+# Directorios de documentos o subidas (si existen)
+uploads/
+documents/
+temp/
+
+# Archivos de configuración sensibles
+.env
+config.php
