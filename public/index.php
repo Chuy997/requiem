@@ -175,10 +175,15 @@ try {
 }
 $isAdmin = $currentUser->isAdmin();
 
-$includeCompleted = isset($_GET['show_completed']);
+$includeCompleted = !isset($_GET['hide_completed']);
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($page - 1) * $limit;
+
 $type = $_GET['type'] ?? null;
 $listController = new NreListController();
-$nres = $listController->listNres($user_id, $isAdmin, $includeCompleted, $type);
+$nres = $listController->listNres($user_id, $isAdmin, $includeCompleted, $type, $limit, $offset);
+$totalNres = $listController->getTotalNres($user_id, $isAdmin, $includeCompleted, $type);
 
 // Mostrar mensajes globales
 if (!empty($_SESSION['nre_message'])) {

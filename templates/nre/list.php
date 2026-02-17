@@ -149,13 +149,26 @@ foreach ($nres as $nre) {
                     </ul>
                 </div>
                 
-                <?php if (!isset($_GET['show_completed'])): ?>
-                    <a href="index.php?show_completed=1" class="btn btn-outline-secondary">
-                        <i class="bi bi-eye"></i> Ver Completados
+                <?php
+                $urlParams = $_GET;
+                ?>
+                
+                <?php if ($includeCompleted): ?>
+                    <?php
+                    $hideParams = $urlParams;
+                    $hideParams['hide_completed'] = 1;
+                    unset($hideParams['page']); // Reiniciar página al cambiar filtro
+                    ?>
+                    <a href="index.php?<?= http_build_query($hideParams) ?>" class="btn btn-outline-secondary">
+                        <i class="bi bi-eye-slash"></i> Ocultar Completados
                     </a>
                 <?php else: ?>
-                    <a href="index.php" class="btn btn-outline-secondary">
-                        <i class="bi bi-eye-slash"></i> Ocultar Completados
+                    <?php
+                    $showParams = $urlParams;
+                    unset($showParams['hide_completed'], $showParams['page']);
+                    ?>
+                    <a href="index.php?<?= http_build_query($showParams) ?>" class="btn btn-outline-secondary">
+                        <i class="bi bi-eye"></i> Ver Completados
                     </a>
                 <?php endif; ?>
             </div>
@@ -169,7 +182,7 @@ foreach ($nres as $nre) {
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <p class="text-muted mb-1 small">Total NREs</p>
-                                <h3 class="mb-0 fw-bold"><?= $stats['total'] ?></h3>
+                                <h3 class="mb-0 fw-bold"><?= $totalNres ?></h3>
                             </div>
                             <i class="bi bi-file-earmark-text stat-icon text-primary"></i>
                         </div>
@@ -182,7 +195,7 @@ foreach ($nres as $nre) {
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <p class="text-muted mb-1 small">Draft</p>
+                                <p class="text-muted mb-1 small">En aprobación</p>
                                 <h3 class="mb-0 fw-bold"><?= $stats['draft'] ?></h3>
                             </div>
                             <i class="bi bi-pencil-square stat-icon text-secondary"></i>
@@ -254,11 +267,28 @@ foreach ($nres as $nre) {
             </div>
         <?php else: ?>
             <div class="card shadow-sm">
-                <div class="card-header bg-white border-bottom">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-2">
                     <h5 class="mb-0 text-dark">
                         <i class="bi bi-table"></i> Lista de Requerimientos
-                        <span class="badge bg-primary ms-2"><?= count($nres) ?> registros</span>
+                        <span class="badge bg-primary ms-2"><?= count($nres) ?> de <?= $totalNres ?> registros</span>
                     </h5>
+                    
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted">Mostrar:</small>
+                        <div class="btn-group btn-group-sm">
+                            <?php foreach ([20, 50, 100] as $l): ?>
+                                <?php
+                                $limParams = $urlParams;
+                                $limParams['limit'] = $l;
+                                $limParams['page'] = 1;
+                                ?>
+                                <a href="index.php?<?= http_build_query($limParams) ?>" 
+                                   class="btn btn-outline-secondary <?= $limit == $l ? 'active' : '' ?>">
+                                    <?= $l ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <table class="table table-hover table-compact mb-0">
@@ -476,9 +506,53 @@ foreach ($nres as $nre) {
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
-                        </table>
-                    </div>
+                    </table>
                 </div>
+                <!-- Pagination Footer -->
+                <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                    <?php
+                    $totalPages = ceil($totalNres / $limit);
+                    if ($totalPages < 1) $totalPages = 1;
+                    ?>
+                    <div>
+                        <small class="text-muted">Página <?= $page ?> de <?= $totalPages ?></small>
+                    </div>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            <!-- Previous -->
+                            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                                <?php
+                                $prevParams = $urlParams;
+                                $prevParams['page'] = $page - 1;
+                                ?>
+                                <a class="page-link" href="index.php?<?= http_build_query($prevParams) ?>"><i class="bi bi-chevron-left"></i></a>
+                            </li>
+                            
+                            <!-- Page Numbers -->
+                            <?php
+                            $startPage = max(1, $page - 2);
+                            $endPage = min($totalPages, $page + 2);
+                            for ($i = $startPage; $i <= $endPage; $i++):
+                                $pgParams = $urlParams;
+                                $pgParams['page'] = $i;
+                            ?>
+                                <li class="page-item <?= $page == $i ? 'active' : '' ?>">
+                                    <a class="page-link" href="index.php?<?= http_build_query($pgParams) ?>"><?= $i ?></a>
+                                </li>
+                            <?php endfor; ?>
+                            
+                            <!-- Next -->
+                            <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                                <?php
+                                $nextParams = $urlParams;
+                                $nextParams['page'] = $page + 1;
+                                ?>
+                                <a class="page-link" href="index.php?<?= http_build_query($nextParams) ?>"><i class="bi bi-chevron-right"></i></a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
             <?php endif; ?>
     </div>
 </div>

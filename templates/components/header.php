@@ -50,6 +50,12 @@ $action = $_GET['action'] ?? '';
                     </li>
                     
                     <li class="nav-item">
+                        <a class="nav-link <?= $currentPage === 'packr' ? 'active' : '' ?>" href="packr.php">
+                            Nuevo PackR
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
                         <a class="nav-link <?= $currentPage === 'reports' ? 'active' : '' ?>" href="reports.php">
                             Reportes
                         </a>

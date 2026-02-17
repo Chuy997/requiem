@@ -59,7 +59,7 @@ class Nre {
 
     public static function generateNextNreNumber(): string {
         $prefix = 'XY';
-        $today = date('Ymd');
+        $today = date('ymd');
 
         $database = Database::getInstance();
         $db = $database->getConnection();
@@ -77,7 +77,7 @@ class Nre {
 
     public static function getNextNreNumbers(int $count): array {
         $prefix = 'XY';
-        $today = date('Ymd');
+        $today = date('ymd');
 
         $database = Database::getInstance();
         $db = $database->getConnection();
@@ -356,20 +356,84 @@ class Nre {
         }
         
         $sql .= " ORDER BY n.created_at DESC";
+
+        // Paginación
+        if (isset($filters['limit'])) {
+            $sql .= " LIMIT ?";
+            $params[] = (int)$filters['limit'];
+            $types .= 'i';
+            if (isset($filters['offset'])) {
+                $sql .= " OFFSET ?";
+                $params[] = (int)$filters['offset'];
+                $types .= 'i';
+            }
+        }
         
-        if (!empty($params)) {
-            $stmt = $this->connection->prepare($sql);
-            if ($stmt) {
-            $stmt->bind_param($types, ...$params);
+        $stmt = $this->connection->prepare($sql);
+        if ($stmt) {
+            if (!empty($params)) {
+                $stmt->bind_param($types, ...$params);
+            }
             $stmt->execute();
             $result = $stmt->get_result();
             return $result->fetch_all(MYSQLI_ASSOC);
         }
+        
+        return [];
     }
-    
-    $result = $this->connection->query($sql);
-    return $result->fetch_all(MYSQLI_ASSOC);
-}
+
+    public function countAll(array $filters = []): int {
+        $sql = "SELECT COUNT(*) as total FROM nres n WHERE 1=1";
+        $params = [];
+        $types = '';
+
+        if (!empty($filters['requirement_type'])) {
+            $sql .= " AND n.requirement_type = ?";
+            $params[] = $filters['requirement_type'];
+            $types .= 's';
+        }
+        
+        if (!empty($filters['status'])) {
+            if (is_array($filters['status'])) {
+                $placeholders = str_repeat('?,', count($filters['status']) - 1) . '?';
+                $sql .= " AND n.status IN ($placeholders)";
+                foreach ($filters['status'] as $s) {
+                    $params[] = $s;
+                    $types .= 's';
+                }
+            } else {
+                $sql .= " AND n.status = ?";
+                $params[] = $filters['status'];
+                $types .= 's';
+            }
+        }
+        
+        if (!empty($filters['requester_id'])) {
+            if (is_array($filters['requester_id'])) {
+                $placeholders = str_repeat('?,', count($filters['requester_id']) - 1) . '?';
+                $sql .= " AND n.requester_id IN ($placeholders)";
+                foreach ($filters['requester_id'] as $id) {
+                    $params[] = (int)$id;
+                    $types .= 'i';
+                }
+            } else {
+                $sql .= " AND n.requester_id = ?";
+                $params[] = (int)$filters['requester_id'];
+                $types .= 'i';
+            }
+        }
+
+        $stmt = $this->connection->prepare($sql);
+        if ($stmt) {
+            if (!empty($params)) {
+                $stmt->bind_param($types, ...$params);
+            }
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            return (int)($result['total'] ?? 0);
+        }
+        return 0;
+    }
     
     public function canEdit(string $nreNumber, int $userId, bool $isAdmin): bool {
         $nre = $this->getByNumber($nreNumber);

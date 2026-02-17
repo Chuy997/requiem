@@ -180,7 +180,7 @@ class PackRequirement {
      * Formato: PACKR-YYYY-XXXX
      */
     private function generatePackRNumber(): string {
-        $year = date('Y');
+        $year = date('y');
         $prefix = "PACKR-{$year}-";
         
         // Obtener el último número del año actual

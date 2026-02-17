@@ -11,13 +11,26 @@ class NreListController {
         $this->nreModel = new Nre();
     }
 
-    public function listNres(int $userId, bool $isAdmin, bool $includeCompleted = false, ?string $type = null): array {
+    public function listNres(int $userId, bool $isAdmin, bool $includeCompleted = false, ?string $type = null, int $limit = 20, int $offset = 0): array {
+        $filters = $this->buildFilters($userId, $isAdmin, $includeCompleted, $type);
+        $filters['limit'] = $limit;
+        $filters['offset'] = $offset;
+        
+        return $this->nreModel->getAll($filters);
+    }
+
+    public function getTotalNres(int $userId, bool $isAdmin, bool $includeCompleted = false, ?string $type = null): int {
+        $filters = $this->buildFilters($userId, $isAdmin, $includeCompleted, $type);
+        return $this->nreModel->countAll($filters);
+    }
+
+    private function buildFilters(int $userId, bool $isAdmin, bool $includeCompleted, ?string $type): array {
         $filters = [];
         
         // Filtro de estado
-        $filters['status'] = $includeCompleted 
-            ? ['Draft','Approved','In Process','Arrived','Cancelled']
-            : ['Draft','Approved','In Process'];
+        if (!$includeCompleted) {
+            $filters['status'] = ['Draft', 'Approved', 'In Process'];
+        }
             
         // Filtro de usuario (si no es admin)
         if (!$isAdmin) {
@@ -28,8 +41,8 @@ class NreListController {
         if ($type) {
             $filters['requirement_type'] = $type;
         }
-        
-        return $this->nreModel->getAll($filters);
+
+        return $filters;
     }
 
     public function markAsInProcess(string $nreNumber, int $userId, bool $isAdmin): bool {
