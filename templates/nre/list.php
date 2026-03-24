@@ -1,13 +1,15 @@
 <?php
 // templates/nre/list.php
 
-// Obtener localidades para integración con inventario (PackR)
+// Obtener localidades y materiales para integración con inventario (PackR)
 $locations = [];
+$materials = [];
 if (file_exists(__DIR__ . '/../../src/services/InventoryIntegration.php')) {
     require_once __DIR__ . '/../../src/services/InventoryIntegration.php';
     try {
         $invIntegration = new InventoryIntegration();
         $locations = $invIntegration->getLocalidades();
+        $materials = $invIntegration->getMaterials();
     } catch (Exception $e) {
         // Ignorar error si no hay conexión al inventario
     }
@@ -139,6 +141,7 @@ foreach ($nres as $nre) {
                     <a href="index.php?type=PackR" class="btn btn-outline-dark <?= (isset($_GET['type']) && $_GET['type'] === 'PackR') ? 'active' : '' ?>">PackR</a>
                 </div>
                 
+                <?php if (!$isCompras): ?>
                 <div class="dropdown">
                     <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                         <i class="bi bi-plus-circle"></i> Nuevo
@@ -148,6 +151,7 @@ foreach ($nres as $nre) {
                         <li><a class="dropdown-item" href="packr.php"><i class="bi bi-box-seam"></i> Nuevo PackR (SAP PDF)</a></li>
                     </ul>
                 </div>
+                <?php endif; ?>
                 
                 <?php
                 $urlParams = $_GET;
@@ -363,6 +367,17 @@ foreach ($nres as $nre) {
                                         <span class="badge bg-<?= $badgeClass ?>" style="font-size: 0.65rem;">
                                             <?= htmlspecialchars($nre['status']) ?>
                                         </span>
+                                        <?php if ($nre['status'] === 'In Process' && !empty($nre['created_at'])): ?>
+                                            <?php
+                                            $createdAt = new DateTime($nre['created_at']);
+                                            $now = new DateTime();
+                                            $daysInProcess = $now->diff($createdAt)->days;
+                                            if ($daysInProcess > 30): ?>
+                                                <br><span class="badge bg-danger mt-1" style="font-size: 0.65rem;" title="Más de 1 mes en proceso"><i class="bi bi-exclamation-octagon"></i> > 1 Mes</span>
+                                            <?php elseif ($daysInProcess > 14): ?>
+                                                <br><span class="badge bg-warning text-dark mt-1" style="font-size: 0.65rem;" title="Más de 2 semanas en proceso"><i class="bi bi-exclamation-triangle"></i> > 2 Semanas</span>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <small><?= $nre['created_at'] ? date('d/m/y', strtotime($nre['created_at'])) : '' ?></small>
@@ -407,6 +422,49 @@ foreach ($nres as $nre) {
                                                         <i class="bi bi-check-circle"></i>
                                                     </button>
                                                     
+                                                    <button type="button" 
+                                                            class="btn btn-outline-danger" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#cancelModal-<?= htmlspecialchars($nre['nre_number']) ?>"
+                                                            title="Cancelar NRE">
+                                                        <i class="bi bi-x-circle"></i>
+                                                    </button>
+                                                    
+                                                    <!-- Modal Cancelar -->
+                                                    <div class="modal fade" id="cancelModal-<?= htmlspecialchars($nre['nre_number']) ?>" tabindex="-1">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content text-start">
+                                                                <div class="modal-header bg-danger text-white">
+                                                                    <h5 class="modal-title">
+                                                                        <i class="bi bi-x-circle"></i> Cancelar Requerimiento
+                                                                    </h5>
+                                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <form method="POST" action="index.php?action=cancel">
+                                                                    <div class="modal-body">
+                                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
+                                                                        
+                                                                        <div class="alert alert-warning">
+                                                                            <strong>NRE:</strong> <?= htmlspecialchars($nre['nre_number']) ?><br>
+                                                                            <strong>Item:</strong> <?= htmlspecialchars($nre['item_description']) ?>
+                                                                        </div>
+
+                                                                        <div class="mb-3">
+                                                                            <label class="form-label">Motivo de Cancelación <span class="text-danger">*</span></label>
+                                                                            <textarea name="cancel_reason" class="form-control" rows="3" required placeholder="Escribe el motivo por el cual se cancela este requerimiento..."></textarea>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                                                        <button type="submit" class="btn btn-danger">
+                                                                            <i class="bi bi-x-circle"></i> Confirmar Cancelación
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
                                                     <!-- Modal Finalizar -->
                                                     <div class="modal fade" id="arrivalModal-<?= htmlspecialchars($nre['nre_number']) ?>" tabindex="-1">
                                                         <div class="modal-dialog">
@@ -439,14 +497,24 @@ foreach ($nres as $nre) {
                                                                                    value="<?= $nre['quantity'] - ($nre['quantity_received'] ?? 0) ?>" required>
                                                                             <div class="form-text">Dejar el valor por defecto para recibir todo lo restante.</div>
                                                                         </div>
-                                                                        
                                                                         <?php if ($isPackR && !empty($locations)): ?>
+                                                                        <div class="mb-3 position-relative">
+                                                                            <label class="form-label">Material (Para Inventario)</label>
+                                                                            <input type="hidden" name="material_id" class="mat-hidden-<?= htmlspecialchars($nre['nre_number']) ?>" value="">
+                                                                            <div class="typeahead-combo">
+                                                                                <input type="text" class="form-control mat-search-<?= htmlspecialchars($nre['nre_number']) ?>" 
+                                                                                       placeholder="Busca por ID / HWcode / descripción…" autocomplete="off" required>
+                                                                                <div class="ta-panel mat-panel-<?= htmlspecialchars($nre['nre_number']) ?>" 
+                                                                                     style="display:none; position:absolute; z-index:1050; background:#fff; border:1px solid #ccc; width:100%; max-height:200px; overflow-y:auto; border-radius:4px; box-shadow:0 4px 6px rgba(0,0,0,0.1);"></div>
+                                                                            </div>
+                                                                        </div>
+
                                                                         <div class="mb-3">
                                                                             <label class="form-label">Ubicación de Almacén (Inventario)</label>
                                                                             <select name="location" class="form-select" required>
                                                                                 <option value="">Seleccione ubicación...</option>
-                                                                                <?php foreach ($locations as $loc): ?>
-                                                                                    <option value="<?= htmlspecialchars($loc) ?>"><?= htmlspecialchars($loc) ?></option>
+                                                                                <?php foreach ($locations as $locId => $locName): ?>
+                                                                                    <option value="<?= htmlspecialchars($locId) ?>"><?= htmlspecialchars($locId . ' - ' . $locName) ?></option>
                                                                                 <?php endforeach; ?>
                                                                             </select>
                                                                             <div class="form-text text-success"><i class="bi bi-box-seam"></i> Se agregará automáticamente al inventario.</div>
@@ -480,26 +548,48 @@ foreach ($nres as $nre) {
                                                         </button>
                                                     </form>
                                                     
-                                                    <form method="POST" action="index.php?action=cancel" class="d-inline">
-                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
-                                                        <button type="submit" 
-                                                                class="btn btn-outline-danger"
-                                                                onclick="return confirm('¿Cancelar este NRE?');"
-                                                                title="Cancelar NRE">
-                                                            <i class="bi bi-x-circle"></i>
-                                                        </button>
-                                                    </form>
-                                                <?php elseif ($nre['status'] === 'In Process' && $isAdmin): ?>
-                                                    <!-- Admin puede cancelar incluso en In Process -->
-                                                    <form method="POST" action="index.php?action=cancel" class="d-inline">
-                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
-                                                        <button type="submit" 
-                                                                class="btn btn-outline-danger"
-                                                                onclick="return confirm('¿Cancelar este NRE?');"
-                                                                title="Cancelar NRE">
-                                                            <i class="bi bi-x-circle"></i>
-                                                        </button>
-                                                    </form>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-danger" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#cancelModal-<?= htmlspecialchars($nre['nre_number']) ?>"
+                                                            title="Cancelar NRE">
+                                                        <i class="bi bi-x-circle"></i>
+                                                    </button>
+                                                    
+                                                    <!-- Modal Cancelar -->
+                                                    <div class="modal fade" id="cancelModal-<?= htmlspecialchars($nre['nre_number']) ?>" tabindex="-1">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content text-start">
+                                                                <div class="modal-header bg-danger text-white">
+                                                                    <h5 class="modal-title">
+                                                                        <i class="bi bi-x-circle"></i> Cancelar Requerimiento
+                                                                    </h5>
+                                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <form method="POST" action="index.php?action=cancel">
+                                                                    <div class="modal-body">
+                                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
+                                                                        
+                                                                        <div class="alert alert-warning">
+                                                                            <strong>NRE:</strong> <?= htmlspecialchars($nre['nre_number']) ?><br>
+                                                                            <strong>Item:</strong> <?= htmlspecialchars($nre['item_description']) ?>
+                                                                        </div>
+
+                                                                        <div class="mb-3">
+                                                                            <label class="form-label">Motivo de Cancelación <span class="text-danger">*</span></label>
+                                                                            <textarea name="cancel_reason" class="form-control" rows="3" required placeholder="Escribe el motivo por el cual se cancela este requerimiento..."></textarea>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                                                        <button type="submit" class="btn btn-danger">
+                                                                            <i class="bi bi-x-circle"></i> Confirmar Cancelación
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
@@ -555,6 +645,90 @@ foreach ($nres as $nre) {
             </div>
             <?php endif; ?>
     </div>
-</div>
+<script>
+const materialsData = <?= json_encode($materials ?? [], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+document.addEventListener('DOMContentLoaded', function(){
+    const matData = (materialsData || []).map(m => Object.assign({__key: String(m.id)}, m));
+    
+    function highlight(txt, q){
+        if (!q) return txt;
+        try {
+            const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&') + ')', 'ig');
+            return txt.replace(re, '<strong>$1</strong>');
+        } catch { return txt; }
+    }
+    
+    function materialLabel(m){ return `${m.id} — ${m.HWcode ? (m.HWcode + ' — ') : ''}${m.descripcion || ''}`; }
+    function matMatch(m, s){
+        return String(m.id).toLowerCase().includes(s)
+            || String(m.HWcode || '').toLowerCase().includes(s)
+            || String(m.descripcion || '').toLowerCase().includes(s);
+    }
+    
+    // Attach to all modals
+    document.querySelectorAll('.typeahead-combo').forEach(combo => {
+        const input = combo.querySelector('input[type="text"]');
+        const hidden = combo.previousElementSibling;
+        const panel = combo.querySelector('.ta-panel');
+        if(!input || !hidden || !panel) return;
+        
+        function setMaterialById(id){
+            hidden.value = id || '';
+            const m = matData.find(x => String(x.id) === String(id));
+            input.value = m ? materialLabel(m) : (id ? id : '');
+        }
+
+        function render(items, q){
+            panel.innerHTML = '';
+            if (!items.length){ panel.style.display = 'none'; active=-1; return; }
+            items.slice(0,50).forEach((item) => {
+                const div = document.createElement('div');
+                div.className = 'p-2 border-bottom cursor-pointer text-dark';
+                div.style.cursor = 'pointer';
+                div.style.fontSize = '0.9rem';
+                div.setAttribute('role','option');
+                div.dataset.key = item.__key || '';
+                div.innerHTML = highlight(materialLabel(item), q);
+                
+                div.addEventListener('mouseover', () => {
+                    Array.from(panel.children).forEach(c => c.style.backgroundColor = '');
+                    div.style.backgroundColor = '#f8f9fa';
+                });
+                
+                div.addEventListener('mousedown', (ev) => { 
+                    setMaterialById(item.id); 
+                    panel.style.display = 'none';
+                    ev.preventDefault(); 
+                });
+                panel.appendChild(div);
+            });
+            panel.style.display = 'block';
+            active = -1;
+        }
+
+        function filter(q){
+            const s = q.trim().toLowerCase();
+            if (!s) return [];
+            return matData.filter(item => matMatch(item, s));
+        }
+        let active = -1;
+
+        input.addEventListener('input', function(){
+            render(filter(input.value), input.value);
+            hidden.value = ''; // clear hidden if they start typing again
+        });
+        input.addEventListener('focus', function(){
+            if (input.value.trim()){ render(filter(input.value), input.value); }
+        });
+        input.addEventListener('blur', function(){
+            setTimeout(()=>{ panel.style.display='none'; }, 200);
+            // Si el usuario escribió un ID exacto
+            const rawM = (input.value || '').trim();
+            const exactM = matData.find(m => String(m.id) === rawM);
+            if (exactM) setMaterialById(exactM.id);
+        });
+    });
+});
+</script>
 
 <?php include __DIR__ . '/../components/footer.php'; ?>

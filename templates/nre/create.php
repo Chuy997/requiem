@@ -47,7 +47,7 @@ include __DIR__ . '/../components/header.php';
                             <div class="col-md-4">
                                 <label class="form-label">Precio y Moneda *</label>
                                 <div class="input-group">
-                                    <input type="number" step="0.01" name="items[<?= $index ?>][price_amount]" class="form-control" value="<?= htmlspecialchars($item['price_amount'] ?? '') ?>" required>
+                                    <input type="number" step="any" name="items[<?= $index ?>][price_amount]" class="form-control" value="<?= htmlspecialchars($item['price_amount'] ?? '') ?>" required>
                                     <select name="items[<?= $index ?>][price_currency]" class="form-select" style="max-width:100px;">
                                         <option value="USD" <?= ($item['price_currency'] ?? 'USD') === 'USD' ? 'selected' : '' ?>>USD</option>
                                         <option value="MXN" <?= ($item['price_currency'] ?? 'USD') === 'MXN' ? 'selected' : '' ?>>MXN</option>
@@ -118,7 +118,7 @@ include __DIR__ . '/../components/header.php';
                         <div class="col-md-4">
                             <label class="form-label">Precio y Moneda *</label>
                             <div class="input-group">
-                                <input type="number" step="0.01" name="items[0][price_amount]" class="form-control" required>
+                                <input type="number" step="any" name="items[0][price_amount]" class="form-control" required>
                                 <select name="items[0][price_currency]" class="form-select" style="max-width:100px;">
                                     <option value="USD">USD</option>
                                     <option value="MXN">MXN</option>
@@ -219,7 +219,7 @@ function addItemRow() {
             <div class="col-md-4">
                 <label class="form-label">Precio y Moneda *</label>
                 <div class="input-group">
-                    <input type="number" step="0.01" name="items[${itemIndex}][price_amount]" class="form-control" required>
+                    <input type="number" step="any" name="items[${itemIndex}][price_amount]" class="form-control" required>
                     <select name="items[${itemIndex}][price_currency]" class="form-select" style="max-width:100px;">
                         <option value="USD">USD</option>
                         <option value="MXN">MXN</option>

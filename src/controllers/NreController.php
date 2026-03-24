@@ -91,10 +91,10 @@ class NreController {
 
             if ($currency === 'USD') {
                 $unitPriceUsd = $priceAmount;
-                $unitPriceMxn = round($priceAmount * $rate, 2);
+                $unitPriceMxn = $priceAmount * $rate;
             } else { // MXN
                 $unitPriceMxn = $priceAmount;
-                $unitPriceUsd = round($priceAmount / $rate, 2);
+                $unitPriceUsd = $priceAmount / $rate;
             }
 
             $this->nreModel->create([
@@ -161,10 +161,10 @@ class NreController {
 
             if ($currency === 'USD') {
                 $unitUsd = $priceAmount;
-                $unitMxn = round($priceAmount * $rate, 2);
+                $unitMxn = $priceAmount * $rate;
             } else {
                 $unitMxn = $priceAmount;
-                $unitUsd = round($priceAmount / $rate, 2);
+                $unitUsd = $priceAmount / $rate;
             }
 
             $totalMxn = round($qty * $unitMxn, 2);

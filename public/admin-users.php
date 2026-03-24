@@ -27,7 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = $_POST['email'] ?? '';
             $password = $_POST['password'] ?? '';
             $fullName = $_POST['full_name'] ?? '';
-            $isAdmin = isset($_POST['is_admin']) ? 1 : 0;
+            $role = $_POST['role'] ?? 'engineer';
+            $isAdmin = ($role === 'admin') ? 1 : 0;
+            $isCompras = ($role === 'compras') ? 1 : 0;
             
             if (empty($email) || empty($password) || empty($fullName)) {
                 throw new Exception('Todos los campos son requeridos');
@@ -37,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('La contraseña debe tener al menos 8 caracteres');
             }
             
-            $userId = User::createUser($email, $password, $fullName, $isAdmin);
+            $userId = User::createUser($email, $password, $fullName, $isAdmin, $isCompras);
             $_SESSION['success'] = "Usuario creado exitosamente (ID: $userId)";
             header('Location: admin-users.php');
             exit;
@@ -46,7 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = (int)$_POST['id'];
             $email = $_POST['email'] ?? '';
             $fullName = $_POST['full_name'] ?? '';
-            $isAdmin = isset($_POST['is_admin']) ? 1 : 0;
+            $role = $_POST['role'] ?? 'engineer';
+            $isAdmin = ($role === 'admin') ? 1 : 0;
+            $isCompras = ($role === 'compras') ? 1 : 0;
             $newPassword = !empty($_POST['new_password']) ? $_POST['new_password'] : null;
             
             if (empty($email) || empty($fullName)) {
@@ -57,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('La contraseña debe tener al menos 8 caracteres');
             }
             
-            User::updateUser($id, $email, $fullName, $isAdmin, $newPassword);
+            User::updateUser($id, $email, $fullName, $isAdmin, $newPassword, $isCompras);
             $_SESSION['success'] = 'Usuario actualizado exitosamente';
             header('Location: admin-users.php');
             exit;
@@ -145,6 +149,10 @@ include __DIR__ . '/../templates/components/header.php';
                                         <span class="badge bg-danger">
                                             <i class="bi bi-shield-fill-check"></i> ADMIN
                                         </span>
+                                    <?php elseif (!empty($user['is_compras'])): ?>
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-cart"></i> COMPRAS
+                                        </span>
                                     <?php else: ?>
                                         <span class="badge bg-primary">
                                             <i class="bi bi-person"></i> ENGINEER
@@ -210,13 +218,13 @@ include __DIR__ . '/../templates/components/header.php';
                                                 </div>
                                                 
                                                 <?php if ($user['id'] != 1): ?>
-                                                <div class="form-check">
-                                                    <input type="checkbox" name="is_admin" class="form-check-input" 
-                                                           id="isAdmin<?= $user['id'] ?>"
-                                                           <?= $user['is_admin'] ? 'checked' : '' ?>>
-                                                    <label class="form-check-label" for="isAdmin<?= $user['id'] ?>">
-                                                        <strong>Administrador</strong>
-                                                    </label>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Rol del Usuario</label>
+                                                    <select name="role" class="form-select">
+                                                        <option value="engineer" <?= !$user['is_admin'] && empty($user['is_compras']) ? 'selected' : '' ?>>Ingeniero</option>
+                                                        <option value="compras" <?= !empty($user['is_compras']) ? 'selected' : '' ?>>Compras (Solo Lectura)</option>
+                                                        <option value="admin" <?= !empty($user['is_admin']) ? 'selected' : '' ?>>Administrador</option>
+                                                    </select>
                                                 </div>
                                                 <?php endif; ?>
                                             </div>
@@ -309,13 +317,14 @@ include __DIR__ . '/../templates/components/header.php';
                         <small class="text-muted">Mínimo 8 caracteres</small>
                     </div>
                     
-                    <div class="form-check">
-                        <input type="checkbox" name="is_admin" class="form-check-input" id="isAdminNew">
-                        <label class="form-check-label" for="isAdminNew">
-                            <strong>Administrador</strong>
-                        </label>
-                        <br>
-                        <small class="text-muted">Los administradores pueden gestionar usuarios y editar cualquier NRE</small>
+                    <div class="mb-3">
+                        <label class="form-label">Rol del Usuario *</label>
+                        <select name="role" class="form-select" required>
+                            <option value="engineer" selected>Ingeniero</option>
+                            <option value="compras">Compras (Solo Lectura)</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                        <div class="form-text">Los administradores pueden gestionar usuarios y editar cualquier NRE.</div>
                     </div>
                 </div>
                 <div class="modal-footer">

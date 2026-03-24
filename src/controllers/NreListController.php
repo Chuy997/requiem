@@ -49,11 +49,11 @@ class NreListController {
         return $this->nreModel->markAsInProcess($nreNumber, $userId, $isAdmin);
     }
 
-    public function cancelNre(string $nreNumber, int $userId, bool $isAdmin): bool {
-        return $this->nreModel->cancelNre($nreNumber, $userId, $isAdmin);
+    public function cancelNre(string $nreNumber, int $userId, bool $isAdmin, string $cancelReason = ''): bool {
+        return $this->nreModel->cancelNre($nreNumber, $userId, $isAdmin, $cancelReason);
     }
 
-    public function markAsArrived(string $nreNumber, int $userId, string $arrivalDate, bool $isAdmin, int $quantityReceived = 0, string $comments = '', string $location = ''): bool {
+    public function markAsArrived(string $nreNumber, int $userId, string $arrivalDate, bool $isAdmin, int $quantityReceived = 0, string $comments = '', string $location = '', string $materialId = ''): bool {
         // Obtener estado previo para calcular cantidad real si se envía 0
         $nre = $this->nreModel->getByNumber($nreNumber);
         if (!$nre) return false;
@@ -72,11 +72,17 @@ class NreListController {
                 require_once __DIR__ . '/../services/InventoryIntegration.php';
                 try {
                     $inventory = new InventoryIntegration();
-                    $sku = $nre['item_code']; 
+                    
+                    // Si el usuario seleccionó un material explícito desde el dropdown, usarlo
+                    $skuToUse = !empty($materialId) ? $materialId : $nre['item_code']; 
+                    
+                    if (empty($skuToUse)) {
+                        throw new Exception("No se especificó un material válido para la integración con inventario.");
+                    }
                     
                     if ($qtyToAdd > 0) {
-                        $inventory->registerInbound($sku, $qtyToAdd, $location, $userId);
-                        error_log("InventoryIntegration: Material agregado exitosamente. SKU: $sku, Cantidad: $qtyToAdd, Ubicación: $location");
+                        $inventory->registerInbound($skuToUse, $qtyToAdd, $location, $userId);
+                        error_log("InventoryIntegration: Material agregado exitosamente. SKU: $skuToUse, Cantidad: $qtyToAdd, Ubicación: $location");
                     }
                     
                 } catch (Exception $e) {
@@ -85,7 +91,7 @@ class NreListController {
                     error_log("Inventory Integration Error for NRE $nreNumber: " . $e->getMessage());
                     
                     // Actualizar comentarios con la advertencia
-                    $this->nreModel->markAsArrived($nreNumber, $userId, $arrivalDate, $isAdmin, 0, $inventoryError);
+                    $this->nreModel->appendClosureComment($nreNumber, $inventoryError);
                     
                     // No fallamos la transacción principal, pero logueamos el error.
                 }

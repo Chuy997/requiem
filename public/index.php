@@ -59,6 +59,20 @@ if ($action === 'preview' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// --- Edit from Preview: restaura datos y redirige al formulario ---
+if ($action === 'edit_from_preview') {
+    if (isset($_SESSION['nre_items'])) {
+        $_SESSION['nre_form_data']['items'] = $_SESSION['nre_items'];
+        // Si hay archivos temporales, podríamos intentar restaurarlos o advertir al usuario
+        // Por simplicidad, el usuario deberá volver a subir los archivos si edita
+        if (!empty($_SESSION['nre_message'])) {
+             // Mantener mensajes si existen
+        }
+    }
+    header('Location: ./?action=new');
+    exit;
+}
+
 // --- Confirm: procesa datos + archivos reales ---
 if ($action === 'confirm' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -111,13 +125,14 @@ if ($action === 'mark_in_process' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($action === 'cancel' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $nreNumber = $_POST['nre_number'] ?? '';
+    $cancelReason = trim($_POST['cancel_reason'] ?? '');
     if ($nreNumber) {
         require_once __DIR__ . '/../src/models/User.php';
         $currentUser = new User($user_id);
         $isAdmin = $currentUser->isAdmin();
         
         $listController = new NreListController();
-        if ($listController->cancelNre($nreNumber, $user_id, $isAdmin)) {
+        if ($listController->cancelNre($nreNumber, $user_id, $isAdmin, $cancelReason)) {
             $_SESSION['nre_message'] = "✅ NRE $nreNumber cancelado.";
         } else {
             $_SESSION['nre_error'] = "❌ No se pudo cancelar el NRE.";
@@ -133,6 +148,7 @@ if ($action === 'mark_arrived' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $quantityReceived = (int)($_POST['quantity_received'] ?? 0);
     $comments = $_POST['comments'] ?? '';
     $location = $_POST['location'] ?? '';
+    $materialId = $_POST['material_id'] ?? '';
 
     if ($nreNumber) {
         require_once __DIR__ . '/../src/models/User.php';
@@ -140,7 +156,7 @@ if ($action === 'mark_arrived' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $isAdmin = $currentUser->isAdmin();
         
         $listController = new NreListController();
-        if ($listController->markAsArrived($nreNumber, $user_id, $arrivalDate, $isAdmin, $quantityReceived, $comments, $location)) {
+        if ($listController->markAsArrived($nreNumber, $user_id, $arrivalDate, $isAdmin, $quantityReceived, $comments, $location, $materialId)) {
             $_SESSION['nre_message'] = "✅ Recepción registrada para $nreNumber.";
         } else {
             $_SESSION['nre_error'] = "❌ No se pudo registrar la recepción.";
@@ -174,6 +190,8 @@ try {
     exit;
 }
 $isAdmin = $currentUser->isAdmin();
+$isCompras = $currentUser->isCompras();
+$canViewAll = $isAdmin || $isCompras;
 
 $includeCompleted = !isset($_GET['hide_completed']);
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
@@ -182,8 +200,8 @@ $offset = ($page - 1) * $limit;
 
 $type = $_GET['type'] ?? null;
 $listController = new NreListController();
-$nres = $listController->listNres($user_id, $isAdmin, $includeCompleted, $type, $limit, $offset);
-$totalNres = $listController->getTotalNres($user_id, $isAdmin, $includeCompleted, $type);
+$nres = $listController->listNres($user_id, $canViewAll, $includeCompleted, $type, $limit, $offset);
+$totalNres = $listController->getTotalNres($user_id, $canViewAll, $includeCompleted, $type);
 
 // Mostrar mensajes globales
 if (!empty($_SESSION['nre_message'])) {

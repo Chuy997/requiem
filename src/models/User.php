@@ -10,6 +10,9 @@ if (!defined('ROLE_ENGINEER')) {
 if (!defined('ROLE_ADMIN')) {
     define('ROLE_ADMIN', 'admin');
 }
+if (!defined('ROLE_COMPRAS')) {
+    define('ROLE_COMPRAS', 'compras');
+}
 
 class User {
     private $id;
@@ -28,7 +31,7 @@ class User {
         $db = Database::getInstance();
         $conn = $db->getConnection();
 
-        $stmt = $conn->prepare("SELECT id, username, email, full_name, is_admin FROM users WHERE id = ?");
+        $stmt = $conn->prepare("SELECT id, username, email, full_name, is_admin, is_compras FROM users WHERE id = ?");
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -38,8 +41,15 @@ class User {
             $this->username = $row['username'];
             $this->email = $row['email'];
             $this->full_name = $row['full_name'];
-            // Mapeo de is_admin (boolean) a rol
-            $this->role = $row['is_admin'] ? ROLE_ADMIN : ROLE_ENGINEER;
+            
+            // Jerarquía de roles: Admin > Compras > Ingeniero
+            if ($row['is_admin']) {
+                $this->role = ROLE_ADMIN;
+            } elseif ($row['is_compras']) {
+                $this->role = ROLE_COMPRAS;
+            } else {
+                $this->role = ROLE_ENGINEER;
+            }
         } else {
             throw new Exception("User not found");
         }
@@ -67,6 +77,7 @@ class User {
     public function getFullName(): string { return $this->full_name; }
     public function getRole(): string { return $this->role; }
     public function isAdmin(): bool { return $this->role === ROLE_ADMIN; }
+    public function isCompras(): bool { return $this->role === ROLE_COMPRAS; }
 
     // Verifica si el usuario pertenece al equipo de ingeniería permitido (IDs 1,2,3)
     public function isAuthorizedEngineer(): bool {
@@ -102,7 +113,7 @@ class User {
     /**
      * Crea un nuevo usuario (solo admin)
      */
-    public static function createUser(string $email, string $password, string $fullName, bool $isAdmin = false): int {
+    public static function createUser(string $email, string $password, string $fullName, bool $isAdmin = false, bool $isCompras = false): int {
         $db = Database::getInstance();
         $conn = $db->getConnection();
         
@@ -118,10 +129,10 @@ class User {
         $username = explode('@', $email)[0];
         
         $stmt = $conn->prepare("
-            INSERT INTO users (username, email, password_hash, full_name, is_admin)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO users (username, email, password_hash, full_name, is_admin, is_compras)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
-        $stmt->bind_param("ssssi", $username, $email, $passwordHash, $fullName, $isAdmin);
+        $stmt->bind_param("ssssii", $username, $email, $passwordHash, $fullName, $isAdmin, $isCompras);
         
         if (!$stmt->execute()) {
             throw new Exception("Error al crear usuario: " . $conn->error);
@@ -133,7 +144,7 @@ class User {
     /**
      * Actualiza un usuario existente
      */
-    public static function updateUser(int $id, string $email, string $fullName, bool $isAdmin, ?string $newPassword = null): bool {
+    public static function updateUser(int $id, string $email, string $fullName, bool $isAdmin, ?string $newPassword = null, bool $isCompras = false): bool {
         $db = Database::getInstance();
         $conn = $db->getConnection();
         
@@ -149,17 +160,17 @@ class User {
             $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
             $stmt = $conn->prepare("
                 UPDATE users 
-                SET email = ?, full_name = ?, is_admin = ?, password_hash = ?
+                SET email = ?, full_name = ?, is_admin = ?, is_compras = ?, password_hash = ?
                 WHERE id = ?
             ");
-            $stmt->bind_param("ssisi", $email, $fullName, $isAdmin, $passwordHash, $id);
+            $stmt->bind_param("ssiisi", $email, $fullName, $isAdmin, $isCompras, $passwordHash, $id);
         } else {
             $stmt = $conn->prepare("
                 UPDATE users 
-                SET email = ?, full_name = ?, is_admin = ?
+                SET email = ?, full_name = ?, is_admin = ?, is_compras = ?
                 WHERE id = ?
             ");
-            $stmt->bind_param("ssii", $email, $fullName, $isAdmin, $id);
+            $stmt->bind_param("ssiii", $email, $fullName, $isAdmin, $isCompras, $id);
         }
         
         return $stmt->execute();
@@ -201,7 +212,7 @@ class User {
         $conn = $db->getConnection();
         
         $result = $conn->query("
-            SELECT id, username, email, full_name, is_admin, created_at 
+            SELECT id, username, email, full_name, is_admin, is_compras, created_at 
             FROM users 
             ORDER BY created_at DESC
         ");
@@ -217,7 +228,7 @@ class User {
         $conn = $db->getConnection();
         
         $stmt = $conn->prepare("
-            SELECT id, username, email, full_name, is_admin, created_at 
+            SELECT id, username, email, full_name, is_admin, is_compras, created_at 
             FROM users 
             WHERE id = ?
         ");

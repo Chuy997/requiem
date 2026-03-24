@@ -125,11 +125,14 @@ include __DIR__ . '/../templates/components/header.php';
                         <label class="form-label">Tasa de Tabla (USD)</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
-                            <input type="number" step="0.000001" name="rate_usd_per_mxn" id="rateInput" 
-                                   class="form-control" placeholder="Ej: 0.054505" required>
+                            <input type="number" step="0.0000000000000001" name="rate_usd_per_mxn" id="rateInput" 
+                                   class="form-control" placeholder="Ej: 0.0545051234567890" required>
                         </div>
                         <div class="form-text text-muted">
-                            Ingresa el valor exacto de la columna "对美元折算率"
+                            Ingresa el valor exacto de la columna "对美元折算率" <br>
+                            <a href="https://www.safe.gov.cn/safe/gzhbdmyzslb/index.html" target="_blank" rel="noopener noreferrer">
+                                <i class="bi bi-box-arrow-up-right"></i> Ver tabla de equivalencias oficiales (SAFE)
+                            </a>
                         </div>
                     </div>
 
@@ -194,10 +197,10 @@ include __DIR__ . '/../templates/components/header.php';
                                     ?>
                                 </td>
                                 <td>
-                                    <strong>$<?= number_format($rateMxn, 4) ?></strong> MXN
+                                    <strong>$<?= rtrim(rtrim(number_format($rateMxn, 16), '0'), '.') ?></strong> MXN
                                 </td>
                                 <td class="text-muted">
-                                    <?= number_format($rateUsd, 6) ?>
+                                    <?= rtrim(rtrim(number_format($rateUsd, 16), '0'), '.') ?>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -226,7 +229,7 @@ include __DIR__ . '/../templates/components/header.php';
                             </div>
                             <div class="text-end">
                                 <span class="badge bg-light text-dark border">
-                                    <?= number_format($h['new_rate'], 4) ?> MXN
+                                    <?= rtrim(rtrim(number_format($h['new_rate'], 16), '0'), '.') ?> MXN
                                 </span>
                                 <br>
                                 <small class="text-muted"><?= htmlspecialchars($h['reason']) ?></small>
@@ -247,11 +250,11 @@ document.getElementById('rateInput').addEventListener('input', function(e) {
     
     if (val > 0) {
         preview.style.display = 'block';
-        document.getElementById('previewUsd').textContent = val.toFixed(6);
+        document.getElementById('previewUsd').textContent = val.toFixed(16).replace(/\.?0+$/, "");
         
         // Calcular inversa (MXN por 1 USD)
         const mxnRate = 1 / val;
-        document.getElementById('previewMxn').textContent = mxnRate.toFixed(4);
+        document.getElementById('previewMxn').textContent = mxnRate.toFixed(16).replace(/\.?0+$/, "");
         document.getElementById('previewRate').textContent = mxnRate.toFixed(4);
     } else {
         preview.style.display = 'none';

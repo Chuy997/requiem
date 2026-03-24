@@ -35,10 +35,18 @@ class EmailService {
         $this->mail->Password   = $_ENV['SMTP_PASSWORD'];
 
         // From debe coincidir con Username en muchos servidores corporativos
-        $this->mail->setFrom($_ENV['SMTP_USERNAME'], 'Sistema de NREs', false);
+        $this->mail->setFrom($_ENV['SMTP_USERNAME'], 'NREs requirements - XINYA Latin America', false);
         $this->mail->addAddress('jesus.muro@xinya-la.com',);
-        //$this->mail->addAddress('cesar.gutierrez@xinya-la.com',);
-        
+        $this->mail->addAddress('cesar.gutierrez@xinya-la.com',);
+        $this->mail->addAddress('xysw@xinya-cn.com',);
+        $this->mail->addAddress('pedro.dabdoub@xinya-cn.com',);
+        $this->mail->addAddress('rocio.cortes@xinya-la.com',);
+        $this->mail->addAddress('dyane.gutierrez@xinya-cn.com',);
+        $this->mail->addAddress('erik.navarro@xinya-la.com',);
+        $this->mail->addAddress('zaira.villegas@xinya-la.com',);
+        $this->mail->addAddress('laura.lopez@xinya-la.com',);
+        $this->mail->addAddress('wuzhijun@xinya-cn.com',);
+        $this->mail->addAddress('weiguoli@xinya-cn.com',);
     }
 
     private function loadEnv(string $envFile): void {

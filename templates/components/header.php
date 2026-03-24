@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../src/models/User.php';
 
 $currentUser = new User($_SESSION['user_id']);
 $isAdmin = $currentUser->isAdmin();
+$isCompras = $currentUser->isCompras();
 $currentPage = basename($_SERVER['PHP_SELF'], '.php');
 $action = $_GET['action'] ?? '';
 ?>
@@ -43,6 +44,7 @@ $action = $_GET['action'] ?? '';
                         </a>
                     </li>
                     
+                    <?php if (!$isCompras): ?>
                     <li class="nav-item">
                         <a class="nav-link <?= $action === 'new' ? 'active' : '' ?>" href="index.php?action=new">
                             Nuevo NRE
@@ -66,6 +68,7 @@ $action = $_GET['action'] ?? '';
                             Tipos de Cambio
                         </a>
                     </li>
+                    <?php endif; ?>
                     
                     <?php if ($isAdmin): ?>
                     <li class="nav-item">
@@ -81,7 +84,7 @@ $action = $_GET['action'] ?? '';
                         <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
                             <div class="d-flex flex-column text-end lh-1 d-none d-md-block">
                                 <span class="fw-semibold" style="font-size: 0.9rem;"><?= htmlspecialchars($currentUser->getFullName()) ?></span>
-                                <span class="text-muted" style="font-size: 0.75rem;"><?= $isAdmin ? 'Administrador' : 'Ingeniero' ?></span>
+                                <span class="text-muted" style="font-size: 0.75rem;"><?= $isAdmin ? 'Administrador' : ($isCompras ? 'Compras' : 'Ingeniero') ?></span>
                             </div>
                             <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-primary fw-bold border" style="width: 35px; height: 35px;">
                                 <?= strtoupper(substr($currentUser->getFullName(), 0, 1)) ?>

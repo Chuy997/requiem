@@ -61,10 +61,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Calcular precios
         if ($currency === 'USD') {
             $unitPriceUsd = $priceAmount;
-            $unitPriceMxn = round($priceAmount * $rate, 2);
+            $unitPriceMxn = $priceAmount * $rate;
         } else {
             $unitPriceMxn = $priceAmount;
-            $unitPriceUsd = round($priceAmount / $rate, 2);
+            $unitPriceUsd = $priceAmount / $rate;
         }
         
         $data = [
@@ -156,15 +156,15 @@ include __DIR__ . '/../templates/components/header.php';
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Precio Unitario *</label>
                             <div class="input-group">
-                                <input type="number" step="0.01" name="price_amount" class="form-control" 
-                                       value="<?= number_format($nre['unit_price_usd'], 2, '.', '') ?>" required>
+                                <input type="number" step="any" name="price_amount" class="form-control" 
+                                       value="<?= (float)$nre['unit_price_usd'] ?>" required>
                                 <select name="price_currency" class="form-select" style="max-width:80px;">
                                     <option value="USD" selected>USD</option>
                                     <option value="MXN">MXN</option>
                                 </select>
                             </div>
                             <small class="text-muted">
-                                Actual: $<?= number_format($nre['unit_price_usd'], 2) ?> USD
+                                Actual: $<?= (float)$nre['unit_price_usd'] ?> USD
                             </small>
                         </div>
 
@@ -173,7 +173,7 @@ include __DIR__ . '/../templates/components/header.php';
                             <select name="exchange_rate_period" class="form-select">
                                 <?php foreach ($availableRates as $rateOption): ?>
                                     <option value="<?= $rateOption['period'] ?>" <?= ($rateOption['period'] === $currentPeriod) ? 'selected' : '' ?>>
-                                        <?= $rateOption['period'] ?> - $<?= number_format($rateOption['rate_mxn_per_usd'], 2) ?>
+                                        <?= $rateOption['period'] ?> - $<?= (float)$rateOption['rate_mxn_per_usd'] ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>

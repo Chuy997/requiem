@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Usuario - Requiem</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --accent-color: #0dcaf0;
+            --bg-light: #f8f9fa;
+            --text-dark: #212529;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            line-height: 1.6;
+            scroll-behavior: smooth;
+        }
+
+        /* Navbar */
+        .navbar {
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+            color: white;
+            padding: 80px 0;
+            margin-bottom: 50px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-section::after {
+            content: '';
+            position: absolute;
+            bottom: -50px;
+            left: 0;
+            width: 100%;
+            height: 100px;
+            background: #fff;
+            transform: skewY(-3deg);
+        }
+
+        /* Section Styling */
+        section {
+            padding: 60px 0;
+        }
+
+        .section-title {
+            position: relative;
+            margin-bottom: 40px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .section-title::after {
+            content: '';
+            display: block;
+            width: 50px;
+            height: 3px;
+            background: var(--accent-color);
+            margin-top: 10px;
+        }
+
+        /* Cards */
+        .feature-card {
+            border: none;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            height: 100%;
+            background: white;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .icon-box {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        /* Timeline / Steps */
+        .step-list {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .step-item {
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .step-number {
+            position: absolute;
+            left: -45px;
+            width: 35px;
+            height: 35px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(13, 110, 253, 0.3);
+        }
+
+        /* Status Pills */
+        .status-pill {
+            padding: 8px 15px;
+            border-radius: 50px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        /* Visual Placeholders (Replaces Images) */
+        .visual-placeholder {
+            width: 100%;
+            height: 300px;
+            background: #f8f9fa;
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #dee2e6;
+            color: #adb5bd;
+            flex-direction: column;
+        }
+
+        .visual-placeholder i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Diagram Tree */
+        .flow-diagram {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 20px;
+        }
+
+        .flow-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+            position: relative;
+        }
+
+        .flow-box {
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .flow-arrow {
+            font-size: 1.5rem;
+            color: #cbd5e1;
+        }
+
+        /* Scroll to Top */
+        #scrollTop {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: none;
+            z-index: 99;
+        }
+
+        /* Mobile Optimization */
+        @media (max-width: 768px) {
+            .hero-section {
+                padding: 50px 0;
+            }
+
+            .display-3 {
+                font-size: 2.5rem;
+            }
+
+            section {
+                padding: 40px 0;
+            }
+
+            /* Stack cards better on mobile with spacing */
+            .card {
+                margin-bottom: 1rem;
+            }
+
+            /* Login & CSS Components Scale */
+            .shadow.p-4 {
+                padding: 1.5rem !important;
+                max-width: 100% !important;
+            }
+
+            /* NRE Form mock adjustments */
+            .badge {
+                font-size: 0.75rem !important;
+            }
+
+            /* Adjust placeholder height on mobile */
+            .visual-placeholder {
+                height: 200px !important;
+            }
+
+            /* Adjust scroll button position */
+            #scrollTop {
+                bottom: 20px !important;
+                right: 20px !important;
+                padding: 10px !important;
+            }
+        }
+    </style>
+</head>
+
+<body data-bs-spy="scroll" data-bs-target="#navbar-manual" data-bs-offset="100">
+
+    <!-- Navigation -->
+    <nav id="navbar-manual" class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand text-primary" href="#">
+                <i class="bi bi-box-seam-fill me-2"></i>Requiem
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link" href="#inicio">Inicio</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#flujo">Flujo</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#nre">NRE</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#packr">PackR</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#recepcion">Recepción</a></li>
+                    <li class="nav-item ms-lg-3">
+                        <a href="index.php" class="btn btn-primary rounded-pill px-4">Ir a la App</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header id="inicio" class="hero-section d-flex align-items-center">
+        <div class="container text-center">
+            <h1 class="display-3 fw-bold mb-3">Manual de Usuario</h1>
+            <p class="lead mb-4 opacity-75">Tu guía completa para dominar el sistema Requiem: Gestión de NRE y PackR.
+            </p>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="#flujo" class="btn btn-light btn-lg rounded-pill px-5 text-primary fw-bold">Comenzar</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Access Section -->
+    <section id="empezar" class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6 mb-4">
+                <h2 class="section-title">🚀 Acceso al Sistema</h2>
+                <div class="step-list mt-4">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <h5>Ingresa a la URL</h5>
+                        <p class="text-secondary small">Accede a la dirección web
+                            http://192.168.1.36/requiem/public/login.php
+                        </p>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <h5>Inicia Sesión</h5>
+                        <p class="text-secondary small">Usa tu <strong>correo electrónico</strong> corporativo y
+                            contraseña.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 text-center">
+                <div class="shadow p-4 bg-white rounded-4" style="max-width: 320px; margin: 0 auto; text-align: left;">
+                    <div class="mb-4 text-center">
+                        <i class="bi bi-box-seam-fill text-primary" style="font-size: 2rem;"></i>
+                        <h5 class="fw-bold mt-2 text-primary">Requiem</h5>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted mb-1">Correo Electrónico</label>
+                        <div class="p-2 bg-light border rounded text-muted small">nombre@xinya-la.com</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted mb-1">Contraseña</label>
+                        <div class="p-2 bg-light border rounded text-muted small">••••••••</div>
+                    </div>
+                    <div class="d-grid">
+                        <div class="btn btn-primary btn-sm opacity-75">Iniciar Sesión</div>
+                    </div>
+                </div>
+                <small class="text-muted mt-3 d-block">Pantalla de inicio de sesión de Requiem</small>
+            </div>
+        </div>
+    </section>
+
+    <!-- Workflow Diagram Section -->
+    <section id="flujo" class="bg-light">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">Ciclo de Vida del Requerimiento</h2>
+                <p class="text-muted">Así es como evoluciona tu solicitud desde la creación hasta la entrega.</p>
+            </div>
+
+            <div class="d-none d-md-flex flow-diagram py-5">
+                <div class="flow-step">
+                    <div class="flow-box bg-secondary">
+                        <i class="bi bi-pencil-square d-block fs-4 mb-1"></i> Draft
+                    </div>
+                    <small class="text-muted mt-2">Creación</small>
+                </div>
+                <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+                <div class="flow-step">
+                    <div class="flow-box bg-warning text-dark">
+                        <i class="bi bi-arrow-clockwise d-block fs-4 mb-1"></i> In Process
+                    </div>
+                    <small class="text-muted mt-2">Solicitud aprobada y registrada en SAP</small>
+                </div>
+                <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+                <div class="flow-step">
+                    <div class="flow-box bg-success">
+                        <i class="bi bi-box-seam d-block fs-4 mb-1"></i> Arrived
+                    </div>
+                    <small class="text-muted mt-2">Material recibido en almacén</small>
+                </div>
+            </div>
+
+            <!-- Mobile View for Diagram -->
+            <div class="d-md-none">
+                <ul class="list-group list-group-flush rounded shadow-sm">
+                    <li class="list-group-item d-flex align-items-center">
+                        <span class="badge bg-secondary me-3">1</span> Draft (Borrador)
+                    </li>
+                    <li class="list-group-item d-flex align-items-center">
+                        <span class="badge bg-warning text-dark me-3">2</span> In Process (En Compra)
+                    </li>
+                    <li class="list-group-item d-flex align-items-center">
+                        <span class="badge bg-success me-3">3</span> Arrived (Recibido)
+                    </li>
+                </ul>
+            </div>
+
+            <div class="row justify-content-center mt-5">
+                <div class="col-md-8">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary"><i class="bi bi-envelope-check me-2"></i>Notificaciones
+                                de Aprobación</h5>
+                            <p class="text-muted small mb-3">Al enviar tu NRE, el sistema notifica automáticamente a los
+                                siguientes grupos. Haz clic para ver los destinatarios:</p>
+
+                            <div class="accordion accordion-flush" id="accordionEmails">
+                                <!-- Engineering -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed py-2 text-dark bg-light mb-1 rounded"
+                                            type="button" data-bs-toggle="collapse" data-bs-target="#emailEng">
+                                            <i class="bi bi-gear-wide-connected me-2 text-primary"></i> Engineering Team
+                                        </button>
+                                    </h2>
+                                    <div id="emailEng" class="accordion-collapse collapse"
+                                        data-bs-parent="#accordionEmails">
+                                        <div class="accordion-body p-2 smaller text-muted">
+                                            <ul class="list-unstyled mb-0 ps-3">
+                                                <li>• jesus.muro@xinya-la.com</li>
+                                                <li>• cesar.gutierrez@xinya-la.com</li>
+                                                <li>• erik.navarro@xinya-la.com</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Direccion CN -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed py-2 text-dark bg-light mb-1 rounded"
+                                            type="button" data-bs-toggle="collapse" data-bs-target="#emailCN">
+                                            <i class="bi bi-globe-asia-australia me-2 text-danger"></i> Dirección
+                                            General (CN)
+                                        </button>
+                                    </h2>
+                                    <div id="emailCN" class="accordion-collapse collapse"
+                                        data-bs-parent="#accordionEmails">
+                                        <div class="accordion-body p-2 smaller text-muted">
+                                            <ul class="list-unstyled mb-0 ps-3">
+                                                <li>• wuzhijun@xinya-cn.com</li>
+                                                <li>• weiguoli@xinya-cn.com</li>
+                                                <li>• xysw@xinya-cn.com</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Compras -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed py-2 text-dark bg-light mb-1 rounded"
+                                            type="button" data-bs-toggle="collapse" data-bs-target="#emailPurch">
+                                            <i class="bi bi-cart3 me-2 text-success"></i> Departamento de Compras
+                                        </button>
+                                    </h2>
+                                    <div id="emailPurch" class="accordion-collapse collapse"
+                                        data-bs-parent="#accordionEmails">
+                                        <div class="accordion-body p-2 smaller text-muted">
+                                            <ul class="list-unstyled mb-0 ps-3">
+                                                <li>• pedro.dabdoub@xinya-cn.com</li>
+                                                <li>• rocio.cortes@xinya-la.com</li>
+                                                <li>• zaira.villegas@xinya-la.com</li>
+                                                <li>• laura.lopez@xinya-la.com</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Finanzas -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed py-2 text-dark bg-light mb-1 rounded"
+                                            type="button" data-bs-toggle="collapse" data-bs-target="#emailFin">
+                                            <i class="bi bi-currency-dollar me-2 text-warning"></i> Departamento de
+                                            Finanzas
+                                        </button>
+                                    </h2>
+                                    <div id="emailFin" class="accordion-collapse collapse"
+                                        data-bs-parent="#accordionEmails">
+                                        <div class="accordion-body p-2 smaller text-muted">
+                                            <ul class="list-unstyled mb-0 ps-3">
+                                                <li>• dyane.gutierrez@xinya-cn.com</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </section>
+
+    <!-- NRE Management Section -->
+    <section id="nre" class="container">
+        <div class="row mb-5">
+            <div class="col-12">
+                <span class="badge bg-primary bg-opacity-10 text-primary mb-2">Ingeniería</span>
+                <h2 class="section-title">Gestión de NRE</h2>
+            </div>
+        </div>
+
+        <div class="row g-5">
+            <div class="col-lg-6">
+                <h4 class="mb-4 text-primary"><i class="bi bi-plus-circle me-2"></i>Crear Solicitud</h4>
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-body">
+                        <ol class="mb-0">
+                            <li class="mb-3">Clic en <strong>"Nuevo"</strong> -> <strong>"Nuevo NRE"</strong>.</li>
+                            <li class="mb-3">
+                                <strong>Completa el formulario:</strong>
+                                <ul class="small text-muted mt-2 mb-3 ps-3">
+                                    <li><strong>Descripción *:</strong> Nombre del artículo.</li>
+                                    <li><strong>Precio y Moneda *:</strong> Selecciona USD o MXN.</li>
+                                    <li><strong>Operación/Marca/Modelo:</strong> Info técnica.</li>
+                                    <li><strong>Razón:</strong> Justificación de uso.</li>
+                                </ul>
+                                <div class="shadow-sm p-3 bg-white border rounded mb-3">
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <label class="small text-muted">Descripción *</label>
+                                            <div class="bg-light border rounded p-2 small text-muted">Laptop Dell
+                                                Latitude...</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="small text-muted">Cantidad *</label>
+                                            <div class="bg-light border rounded p-2 small text-muted">1</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="small text-muted">Precio *</label>
+                                            <div class="bg-light border rounded p-2 small text-muted">$1200 USD</div>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="small text-muted">Razón / Área</label>
+                                            <div class="bg-light border rounded p-2 small text-muted">Reemplazo para
+                                                Ingeniería</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-center mt-2">
+                                        <span class="badge bg-secondary opacity-50">+ Agregar otro ítem</span>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="mb-3">Adjunta cotizaciones (PDF/Imagen).</li>
+                            <li class="mb-3">
+                                <div class="alert alert-info py-2 px-3 small mb-0">
+                                    <i class="bi bi-info-circle-fill me-1"></i> <strong>Tip:</strong> ¡Puedes agregar
+                                    <span class="text-decoration-underline">múltiples ítems</span> usando el botón "+
+                                    Agregar otro ítem".
+                                </div>
+                            </li>
+                            <li>Clic en <strong>"Vista Previa y Enviar"</strong>.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill fs-4 me-3 text-warning"></i>
+                    <div>
+                        <strong>Límite Mensual:</strong> $4,000 USD.<br>
+                        <small>El sistema bloqueará solicitudes que excedan este monto.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <h4 class="mb-4 text-primary"><i class="bi bi-arrow-repeat me-2"></i>Cambiar Estado</h4>
+                <div class="card shadow-sm border-0 bg-light">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold">De Draft a "In Process"</h5>
+                        <p class="text-muted small">Haz esto cuando ya hayas capturado la orden aprobada en SAP.</p>
+
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-secondary me-2">Paso 1</span>
+                            <span>Busca tu NRE en la lista.</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-secondary me-2">Paso 2</span>
+                            <span>Clic en la <strong>Flecha Azul</strong> <i
+                                    class="bi bi-arrow-right-circle text-info"></i>.</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-secondary me-2">Paso 3</span>
+                            <span>Confirma que ya está la aprobación escaneada y firmada en SAP.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-currency-exchange me-2"></i>Tipo de Cambio (Admin)</h6>
+                    <p class="small text-muted mb-2">Para mantener la precisión de costos, actualiza mensualmente el TC
+                        desde la fuente oficial:</p>
+                    <a href="https://www.safe.gov.cn/safe/gzhbdmyzslb/index.html" target="_blank"
+                        class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-link-45deg"></i> Ir a SAFE Govt Site
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PackR Section -->
+    <section id="packr" class="bg-light">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-5 order-md-2">
+                    <div class="visual-placeholder bg-white shadow-sm border-0">
+                        <i class="bi bi-file-earmark-pdf text-danger"></i>
+                        <h5 class="mt-3">PDF de SAP</h5>
+                        <div class="badge bg-light text-dark border mt-2">Solicitud de Compra</div>
+                    </div>
+                </div>
+                <div class="col-md-7 order-md-1">
+                    <span class="badge bg-info bg-opacity-10 text-info mb-2">Empaque</span>
+                    <h2 class="fw-bold mb-4">📦 PackR (Automático)</h2>
+                    <p class="lead">Carga tu PDF de SAP y el sistema hará el resto.</p>
+
+                    <ul class="list-unstyled mt-4">
+                        <li class="mb-3 d-flex">
+                            <i class="bi bi-check-circle-fill text-success fs-5 me-3"></i>
+                            <div><strong>Carga Rápida:</strong> Sube el PDF "Solicitud de Compra".</div>
+                        </li>
+                        <li class="mb-3 d-flex">
+                            <i class="bi bi-check-circle-fill text-success fs-5 me-3"></i>
+                            <div><strong>Sin Captura Manual:</strong> Lee precios y cantidades automáticamente.</div>
+                        </li>
+                        <li class="mb-3 d-flex">
+                            <i class="bi bi-check-circle-fill text-success fs-5 me-3"></i>
+                            <div><strong>Inicio Rápido:</strong> Se crean directo en estado "In Process".</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- Dashboard Section -->
+    <section id="dashboard" class="container">
+        <div class="row align-items-center mb-5">
+            <div class="col-lg-6">
+                <h2 class="section-title">📊 Conociendo tu Dashboard</h2>
+                <p class="lead text-muted">Tu centro de control para monitorear todas las solicitudes.</p>
+
+                <h5 class="fw-bold mt-4 text-primary">Elementos Clave</h5>
+                <ul class="list-unstyled mt-3">
+                    <li class="mb-3 d-flex align-items-start">
+                        <i class="bi bi-funnel-fill text-secondary me-3 mt-1"></i>
+                        <div>
+                            <strong>Filtros Rápidos:</strong>
+                            <br><small class="text-muted">Alterna entre "Mis NREs", "PackR" o "Todo" usando las pestañas
+                                superiores.</small>
+                        </div>
+                    </li>
+                    <li class="mb-3 d-flex align-items-start">
+                        <i class="bi bi-search text-secondary me-3 mt-1"></i>
+                        <div>
+                            <strong>Buscador Inteligente:</strong>
+                            <br><small class="text-muted">Encuentra cualquier solicitud por folio, descripción o
+                                fecha.</small>
+                        </div>
+                    </li>
+                    <li class="d-flex align-items-start">
+                        <i class="bi bi-stoplights-fill text-secondary me-3 mt-1"></i>
+                        <div>
+                            <strong>Semáforo de Estados:</strong>
+                            <br><small class="text-muted">Los colores te indican la salud de cada pedido.</small>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="col-lg-6">
+                <div class="shadow-lg p-3 bg-white rounded-3 border table-responsive">
+                    <div class="border-bottom pb-2 mb-2 d-flex justify-content-between">
+                        <span class="fw-bold small text-primary">Requiem Dashboard</span>
+                        <span class="badge bg-light text-dark border">Mis NREs</span>
+                    </div>
+                    <table class="table table-sm table-borderless small mb-0">
+                        <thead class="text-muted opacity-75">
+                            <tr>
+                                <th>ID</th>
+                                <th>Desc</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>#1024</td>
+                                <td>Monitor 27"...</td>
+                                <td><span class="badge bg-warning text-dark" style="transform: scale(0.8);">In
+                                        Process</span></td>
+                            </tr>
+                            <tr>
+                                <td>#1025</td>
+                                <td>Licencia Office</td>
+                                <td><span class="badge bg-secondary" style="transform: scale(0.8);">Draft</span></td>
+                            </tr>
+                            <tr>
+                                <td>#1020</td>
+                                <td>Filamento PLA</td>
+                                <td><span class="badge bg-success" style="transform: scale(0.8);">Arrived</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <small class="text-center d-block text-muted mt-2">Vista representativa del Dashboard</small>
+            </div>
+        </div>
+
+        <div class="row g-3 justify-content-center">
+            <div class="col-md-2 col-6 text-center">
+                <div class="p-3 border rounded bg-light h-100">
+                    <span class="d-block badge bg-secondary mb-2">Draft</span>
+                    <small>Borrador / Pendiente</small>
+                </div>
+            </div>
+
+            <div class="col-md-2 col-6 text-center">
+                <div class="p-3 border rounded bg-light h-100">
+                    <span class="d-block badge bg-warning text-dark mb-2">In Process</span>
+                    <small>Orden en SAP</small>
+                </div>
+            </div>
+            <div class="col-md-2 col-6 text-center">
+                <div class="p-3 border rounded bg-light h-100">
+                    <span class="d-block badge bg-success mb-2">Arrived</span>
+                    <small>Recibido en planta</small>
+                </div>
+            </div>
+            <div class="col-md-2 col-6 text-center">
+                <div class="p-3 border rounded bg-light h-100">
+                    <span class="d-block badge bg-danger mb-2">Cancelled</span>
+                    <small>Solicitud anulada</small>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Reception Section -->
+    <section id="recepcion" class="container">
+        <div class="text-center mb-5">
+            <h2 class="section-title">📥 Recepción de Materiales</h2>
+            <p class="text-muted">Cierra el ciclo registrando la llegada del material.</p>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+            <div class="col-md-4">
+                <div class="card feature-card p-4 text-center">
+                    <div class="mb-3 text-success">
+                        <i class="bi bi-check-circle" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5>1. Validar</h5>
+                    <p class="text-secondary small">Ubica el requerimiento y haz clic en el botón verde de Check.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card feature-card p-4 text-center">
+                    <div class="mb-3 text-success">
+                        <i class="bi bi-list-check" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5>2. Capturar</h5>
+                    <p class="text-secondary small">Ingresa la cantidad recibida. ¡Puedes recibir parciales!</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card feature-card p-4 text-center">
+                    <div class="mb-3 text-success">
+                        <i class="bi bi-box-seam" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5>3. Ubicar</h5>
+                    <p class="text-secondary small">Para PackR, selecciona la ubicación del almacén para actualizar
+                        inventario.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section id="ayuda" class="bg-dark text-white py-5">
+        <div class="container">
+            <h3 class="fw-bold mb-4"><i class="bi bi-life-preserver me-2"></i>Solución de Problemas</h3>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="p-3 border border-secondary rounded">
+                        <h6 class="text-info"><i class="bi bi-file-earmark-x me-2"></i>Error al subir PDF</h6>
+                        <small class="opacity-75">Verifica que el archivo sea menor a 10MB y sea el formato original de
+                            SAP.</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 border border-secondary rounded">
+                        <h6 class="text-warning"><i class="bi bi-bank me-2"></i>Límite Excedido</h6>
+                        <small class="opacity-75">Si superas los $4,000 USD, no podrás crear el NRE. Contacta a tu
+                            gerente.</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 border border-secondary rounded">
+                        <h6 class="text-danger"><i class="bi bi-x-circle me-2"></i>Cancelar Solicitud</h6>
+                        <small class="opacity-75">Solo puedes cancelar si está en Draft o In Process (antes de
+                            recibir).</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-4 text-center text-muted border-top mt-5">
+        <div class="container">
+            <p class="mb-0 small">&copy; 2026 Sistema Requiem. Manual de Usuario v1.1</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Scroll to top button logic
+        const scrollTopBtn = document.createElement('button');
+        scrollTopBtn.id = 'scrollTop';
+        scrollTopBtn.className = 'btn btn-primary rounded-circle p-3 shadow';
+        scrollTopBtn.innerHTML = '<i class="bi bi-arrow-up"></i>';
+        document.body.appendChild(scrollTopBtn);
+
+        window.onscroll = function () {
+            if (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) {
+                scrollTopBtn.style.display = "block";
+            } else {
+                scrollTopBtn.style.display = "none";
+            }
+        };
+
+        scrollTopBtn.onclick = function () {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+    </script>
+</body>
+
+</html>

@@ -144,31 +144,39 @@ class Nre {
         return $executed && $affected > 0;
     }
 
-    public function cancelNre(string $nreNumber, int $requesterId, bool $isAdmin = false): bool {
+    public function cancelNre(string $nreNumber, int $requesterId, bool $isAdmin = false, string $cancelReason = ''): bool {
+        $nre = $this->getByNumber($nreNumber);
+        if (!$nre) return false;
+
+        $newComments = $nre['closure_comments'] ?? '';
+        if ($cancelReason) {
+             $newComments .= "\n[" . date('Y-m-d H:i') . "] Motivo de cancelación: $cancelReason";
+        }
+
         if ($isAdmin) {
             // Admin puede cancelar cualquier NRE en cualquier estado excepto Arrived y Cancelled
             $stmt = $this->connection->prepare("
                 UPDATE nres 
-                SET status = 'Cancelled', updated_at = NOW()
+                SET status = 'Cancelled', closure_comments = ?, updated_at = NOW()
                 WHERE nre_number = ? AND status NOT IN ('Arrived', 'Cancelled')
             ");
             if (!$stmt) {
                 error_log("Prepare failed (cancelNre): " . $this->connection->error);
                 return false;
             }
-            $stmt->bind_param('s', $nreNumber);
+            $stmt->bind_param('ss', $newComments, $nreNumber);
         } else {
-            // Usuario normal solo puede cancelar sus propios NREs en Draft o Approved
+            // Usuario normal solo puede cancelar sus propios NREs en Draft, Approved o In Process
             $stmt = $this->connection->prepare("
                 UPDATE nres 
-                SET status = 'Cancelled', updated_at = NOW()
-                WHERE nre_number = ? AND requester_id = ? AND status IN ('Draft', 'Approved')
+                SET status = 'Cancelled', closure_comments = ?, updated_at = NOW()
+                WHERE nre_number = ? AND requester_id = ? AND status IN ('Draft', 'Approved', 'In Process')
             ");
             if (!$stmt) {
                 error_log("Prepare failed (cancelNre): " . $this->connection->error);
                 return false;
             }
-            $stmt->bind_param('si', $nreNumber, $requesterId);
+            $stmt->bind_param('ssi', $newComments, $nreNumber, $requesterId);
         }
         $executed = $stmt->execute();
         $affected = $stmt->affected_rows;
@@ -226,6 +234,24 @@ class Nre {
 
         $stmt->bind_param('ssiss', $newStatus, $arrivalDate, $newTotalReceived, $newComments, $nreNumber);
         
+        return $stmt->execute();
+    }
+
+    public function appendClosureComment(string $nreNumber, string $newComment): bool {
+        $nre = $this->getByNumber($nreNumber);
+        if (!$nre) return false;
+
+        $currentComments = $nre['closure_comments'] ?? '';
+        $updatedComments = $currentComments . $newComment;
+
+        $stmt = $this->connection->prepare("
+            UPDATE nres 
+            SET closure_comments = ?, updated_at = NOW()
+            WHERE nre_number = ?
+        ");
+        if (!$stmt) return false;
+
+        $stmt->bind_param('ss', $updatedComments, $nreNumber);
         return $stmt->execute();
     }
 
