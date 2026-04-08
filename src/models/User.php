@@ -10,6 +10,9 @@ if (!defined('ROLE_ENGINEER')) {
 if (!defined('ROLE_ADMIN')) {
     define('ROLE_ADMIN', 'admin');
 }
+if (!defined('ROLE_SUPER_ADMIN')) {
+    define('ROLE_SUPER_ADMIN', 'super_admin');
+}
 if (!defined('ROLE_COMPRAS')) {
     define('ROLE_COMPRAS', 'compras');
 }
@@ -20,6 +23,8 @@ class User {
     private $email;
     private $full_name;
     private $role;
+    private $area_role_id;
+    private $area_role_name;
 
     public function __construct($id = null) {
         if ($id !== null) {
@@ -31,7 +36,12 @@ class User {
         $db = Database::getInstance();
         $conn = $db->getConnection();
 
-        $stmt = $conn->prepare("SELECT id, username, email, full_name, is_admin, is_compras FROM users WHERE id = ?");
+        $stmt = $conn->prepare("
+            SELECT u.id, u.username, u.email, u.full_name, u.is_admin, u.is_compras, u.is_super_admin, u.area_role_id, ar.name as area_role_name 
+            FROM users u 
+            LEFT JOIN area_roles ar ON u.area_role_id = ar.id 
+            WHERE u.id = ?
+        ");
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -41,9 +51,13 @@ class User {
             $this->username = $row['username'];
             $this->email = $row['email'];
             $this->full_name = $row['full_name'];
+            $this->area_role_id = $row['area_role_id'];
+            $this->area_role_name = $row['area_role_name'];
             
-            // Jerarquía de roles: Admin > Compras > Ingeniero
-            if ($row['is_admin']) {
+            // Jerarquía de roles: Super Admin > Admin > Compras > Ingeniero
+            if ($row['is_super_admin']) {
+                $this->role = ROLE_SUPER_ADMIN;
+            } elseif ($row['is_admin']) {
                 $this->role = ROLE_ADMIN;
             } elseif ($row['is_compras']) {
                 $this->role = ROLE_COMPRAS;
@@ -76,7 +90,11 @@ class User {
     public function getEmail(): string { return $this->email; }
     public function getFullName(): string { return $this->full_name; }
     public function getRole(): string { return $this->role; }
-    public function isAdmin(): bool { return $this->role === ROLE_ADMIN; }
+    public function getAreaRoleId(): ?int { return $this->area_role_id; }
+    public function getAreaRoleName(): ?string { return $this->area_role_name; }
+    // Super admins heredarán todos los permisos de Admin en el sistema actual
+    public function isAdmin(): bool { return $this->role === ROLE_ADMIN || $this->role === ROLE_SUPER_ADMIN; }
+    public function isSuperAdmin(): bool { return $this->role === ROLE_SUPER_ADMIN; }
     public function isCompras(): bool { return $this->role === ROLE_COMPRAS; }
 
     // Verifica si el usuario pertenece al equipo de ingeniería permitido (IDs 1,2,3)
@@ -113,7 +131,7 @@ class User {
     /**
      * Crea un nuevo usuario (solo admin)
      */
-    public static function createUser(string $email, string $password, string $fullName, bool $isAdmin = false, bool $isCompras = false): int {
+    public static function createUser(string $email, string $password, string $fullName, bool $isAdmin = false, bool $isCompras = false, bool $isSuperAdmin = false, ?int $areaRoleId = null): int {
         $db = Database::getInstance();
         $conn = $db->getConnection();
         
@@ -129,10 +147,10 @@ class User {
         $username = explode('@', $email)[0];
         
         $stmt = $conn->prepare("
-            INSERT INTO users (username, email, password_hash, full_name, is_admin, is_compras)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO users (username, email, password_hash, full_name, is_admin, is_compras, is_super_admin, area_role_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->bind_param("ssssii", $username, $email, $passwordHash, $fullName, $isAdmin, $isCompras);
+        $stmt->bind_param("ssssiiii", $username, $email, $passwordHash, $fullName, $isAdmin, $isCompras, $isSuperAdmin, $areaRoleId);
         
         if (!$stmt->execute()) {
             throw new Exception("Error al crear usuario: " . $conn->error);
@@ -144,7 +162,7 @@ class User {
     /**
      * Actualiza un usuario existente
      */
-    public static function updateUser(int $id, string $email, string $fullName, bool $isAdmin, ?string $newPassword = null, bool $isCompras = false): bool {
+    public static function updateUser(int $id, string $email, string $fullName, bool $isAdmin, ?string $newPassword = null, bool $isCompras = false, bool $isSuperAdmin = false, ?int $areaRoleId = null): bool {
         $db = Database::getInstance();
         $conn = $db->getConnection();
         
@@ -160,17 +178,17 @@ class User {
             $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
             $stmt = $conn->prepare("
                 UPDATE users 
-                SET email = ?, full_name = ?, is_admin = ?, is_compras = ?, password_hash = ?
+                SET email = ?, full_name = ?, is_admin = ?, is_compras = ?, is_super_admin = ?, area_role_id = ?, password_hash = ?
                 WHERE id = ?
             ");
-            $stmt->bind_param("ssiisi", $email, $fullName, $isAdmin, $isCompras, $passwordHash, $id);
+            $stmt->bind_param("ssiiiisi", $email, $fullName, $isAdmin, $isCompras, $isSuperAdmin, $areaRoleId, $passwordHash, $id);
         } else {
             $stmt = $conn->prepare("
                 UPDATE users 
-                SET email = ?, full_name = ?, is_admin = ?, is_compras = ?
+                SET email = ?, full_name = ?, is_admin = ?, is_compras = ?, is_super_admin = ?, area_role_id = ?
                 WHERE id = ?
             ");
-            $stmt->bind_param("ssiii", $email, $fullName, $isAdmin, $isCompras, $id);
+            $stmt->bind_param("ssiiiii", $email, $fullName, $isAdmin, $isCompras, $isSuperAdmin, $areaRoleId, $id);
         }
         
         return $stmt->execute();
@@ -212,9 +230,10 @@ class User {
         $conn = $db->getConnection();
         
         $result = $conn->query("
-            SELECT id, username, email, full_name, is_admin, is_compras, created_at 
-            FROM users 
-            ORDER BY created_at DESC
+            SELECT u.id, u.username, u.email, u.full_name, u.is_admin, u.is_compras, u.is_super_admin, u.created_at, ar.name as area_role_name 
+            FROM users u
+            LEFT JOIN area_roles ar ON u.area_role_id = ar.id
+            ORDER BY u.created_at DESC
         ");
         
         return $result->fetch_all(MYSQLI_ASSOC);
@@ -228,9 +247,10 @@ class User {
         $conn = $db->getConnection();
         
         $stmt = $conn->prepare("
-            SELECT id, username, email, full_name, is_admin, is_compras, created_at 
-            FROM users 
-            WHERE id = ?
+            SELECT u.id, u.username, u.email, u.full_name, u.is_admin, u.is_compras, u.is_super_admin, u.created_at, u.area_role_id, ar.name as area_role_name
+            FROM users u
+            LEFT JOIN area_roles ar ON u.area_role_id = ar.id
+            WHERE u.id = ?
         ");
         $stmt->bind_param("i", $id);
         $stmt->execute();
@@ -254,6 +274,31 @@ class User {
         $stmt = $conn->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
         $stmt->bind_param("si", $passwordHash, $this->id);
         
+        return $stmt->execute();
+    }
+
+    // ==================== MÉTODOS DE ROLES DE ÁREA ====================
+    public static function getAreaRoles(): array {
+        $db = Database::getInstance();
+        $conn = $db->getConnection();
+        $result = $conn->query("SELECT id, name FROM area_roles ORDER BY name ASC");
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public static function createAreaRole(string $name): bool {
+        $db = Database::getInstance();
+        $conn = $db->getConnection();
+        $stmt = $conn->prepare("INSERT INTO area_roles (name) VALUES (?)");
+        $stmt->bind_param("s", $name);
+        return $stmt->execute();
+    }
+
+    public static function deleteAreaRole(int $id): bool {
+        $db = Database::getInstance();
+        $conn = $db->getConnection();
+        // Constraints ON DELETE SET NULL handle user unlinking automatically
+        $stmt = $conn->prepare("DELETE FROM area_roles WHERE id = ?");
+        $stmt->bind_param("i", $id);
         return $stmt->execute();
     }
 }

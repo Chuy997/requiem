@@ -41,9 +41,8 @@ class EmailService {
         $this->mail->addAddress('xysw@xinya-cn.com',);
         $this->mail->addAddress('pedro.dabdoub@xinya-cn.com',);
         $this->mail->addAddress('rocio.cortes@xinya-la.com',);
-        $this->mail->addAddress('dyane.gutierrez@xinya-cn.com',);
-        $this->mail->addAddress('erik.navarro@xinya-la.com',);
-        $this->mail->addAddress('zaira.villegas@xinya-la.com',);
+        $this->mail->addAddress('dyane.gutierrez@xinya-cn.com');
+        $this->mail->addAddress('zaira.villegas@xinya-la.com');
         $this->mail->addAddress('laura.lopez@xinya-la.com',);
         $this->mail->addAddress('wuzhijun@xinya-cn.com',);
         $this->mail->addAddress('weiguoli@xinya-cn.com',);
@@ -65,6 +64,7 @@ class EmailService {
         try {
             if ($replyTo) {
                 $this->mail->addReplyTo($replyTo);
+                $this->mail->addAddress($replyTo); // Se agrega para que le llegue copia al propio solicitante
             }
             $this->mail->Subject = $subject;
             $this->mail->Body    = $body;

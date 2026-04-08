@@ -45,8 +45,8 @@ class NreListController {
         return $filters;
     }
 
-    public function markAsInProcess(string $nreNumber, int $userId, bool $isAdmin): bool {
-        return $this->nreModel->markAsInProcess($nreNumber, $userId, $isAdmin);
+    public function markAsInProcess(string $nreNumber, int $userId, bool $isAdmin, string $sapNumber = ''): bool {
+        return $this->nreModel->markAsInProcess($nreNumber, $userId, $isAdmin, $sapNumber);
     }
 
     public function cancelNre(string $nreNumber, int $userId, bool $isAdmin, string $cancelReason = ''): bool {
@@ -99,5 +99,19 @@ class NreListController {
         }
         
         return $success;
+    }
+
+    public function deleteNre(string $nreNumber, User $currentUser): bool {
+        if (!$currentUser->isSuperAdmin()) {
+            throw new Exception("Acceso denegado: Se requieren privilegios de Super Administrador.");
+        }
+        return $this->nreModel->delete($nreNumber);
+    }
+    
+    public function reassignNre(string $nreNumber, int $newRequesterId, User $currentUser): bool {
+        if (!$currentUser->isSuperAdmin()) {
+            throw new Exception("Acceso denegado: Se requieren privilegios de Super Administrador.");
+        }
+        return $this->nreModel->reassign($nreNumber, $newRequesterId);
     }
 }

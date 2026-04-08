@@ -74,7 +74,7 @@ class PdfParser {
         foreach ($lines as $line) {
             // Buscar línea principal del item (empieza con código EXP...)
             // Regex ajustada para espacios múltiples
-            if (preg_match('/^\s*([A-Z0-9]+)\s+(.+?)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d+)\s+([\d,\.]+)\s+([A-Z]+)\s+(\d+)\s+([\d,\.]+)\s*([A-Z]+)?/i', $line, $matches)) {
+            if (preg_match('/^\s*([A-Z0-9\-]+)\s+(.+?)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+([\d,\.]+)\s+([\d,\.]+)(?:\s*[A-Z]{3})?\s+([A-Z_]+)\s+([A-Z0-9]+)\s+([\d,\.]+)(?:\s*[A-Z]{3})?/i', $line, $matches)) {
                 
                 // Si había un item anterior, guardarlo
                 if ($currentItem) {

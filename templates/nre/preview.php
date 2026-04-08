@@ -10,6 +10,12 @@ include __DIR__ . '/../components/header.php';
     <div class="col-12">
     <h2 class="mb-4">Vista Previa de Solicitud de Compra</h2>
 
+    <?php if (!empty($_SESSION['nre_is_special_req'])): ?>
+        <div class="alert alert-warning">
+            <strong>⚠️ Atención:</strong> Esta solicitud está marcada como <b>Requerimiento Especial</b> y permitirá exceder el límite de presupuesto mensual.
+        </div>
+    <?php endif; ?>
+
     <div class="table-responsive mb-4">
         <table class="table table-bordered">
             <thead class="table-light">

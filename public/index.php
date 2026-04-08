@@ -25,6 +25,7 @@ if ($action === 'preview' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $nreNumbers = Nre::getNextNreNumbers(count($items));
         $_SESSION['nre_items'] = $items;
         $_SESSION['nre_nre_numbers'] = $nreNumbers;
+        $_SESSION['nre_is_special_req'] = isset($_POST['is_special_req']) ? 1 : 0;
         
         // Manejar subida temporal de archivos
         $tempFiles = [];
@@ -63,6 +64,9 @@ if ($action === 'preview' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'edit_from_preview') {
     if (isset($_SESSION['nre_items'])) {
         $_SESSION['nre_form_data']['items'] = $_SESSION['nre_items'];
+        if (isset($_SESSION['nre_is_special_req'])) {
+            $_SESSION['nre_form_data']['is_special_req'] = $_SESSION['nre_is_special_req'];
+        }
         // Si hay archivos temporales, podríamos intentar restaurarlos o advertir al usuario
         // Por simplicidad, el usuario deberá volver a subir los archivos si edita
         if (!empty($_SESSION['nre_message'])) {
@@ -82,11 +86,12 @@ if ($action === 'confirm' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $tempFiles = $_SESSION['nre_temp_files'] ?? [];
         $controller = new NreController();
+        $isSpecialReq = !empty($_SESSION['nre_is_special_req']);
         
         // Pasamos rutas temporales en lugar de $_FILES
-        $success = $controller->createFromForm($_SESSION['nre_items'], $tempFiles, $user_id);
+        $success = $controller->createFromForm($_SESSION['nre_items'], $tempFiles, $user_id, $isSpecialReq);
         
-        unset($_SESSION['nre_items'], $_SESSION['nre_nre_numbers'], $_SESSION['nre_temp_files']);
+        unset($_SESSION['nre_items'], $_SESSION['nre_nre_numbers'], $_SESSION['nre_temp_files'], $_SESSION['nre_is_special_req']);
         
         if ($success) {
             $_SESSION['nre_message'] = "✅ Solicitud enviada. Revisa tu correo.";
@@ -107,13 +112,14 @@ if ($action === 'confirm' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // --- Acciones de gestión ---
 if ($action === 'mark_in_process' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $nreNumber = $_POST['nre_number'] ?? '';
+    $sapNumber = $_POST['sap_number'] ?? '';
     if ($nreNumber) {
         require_once __DIR__ . '/../src/models/User.php';
         $currentUser = new User($user_id);
         $isAdmin = $currentUser->isAdmin();
         
         $listController = new NreListController();
-        if ($listController->markAsInProcess($nreNumber, $user_id, $isAdmin)) {
+        if ($listController->markAsInProcess($nreNumber, $user_id, $isAdmin, $sapNumber)) {
             $_SESSION['nre_message'] = "✅ NRE $nreNumber marcado como 'En Proceso'.";
         } else {
             $_SESSION['nre_error'] = "❌ No se pudo actualizar el NRE.";
@@ -167,6 +173,49 @@ if ($action === 'mark_arrived' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // --- Redirección de éxito (legado) ---
+if ($action === 'delete_nre' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $nreNumber = $_POST['nre_number'] ?? '';
+    if ($nreNumber) {
+        require_once __DIR__ . '/../src/models/User.php';
+        $currentUser = new User($user_id);
+        
+        $listController = new NreListController();
+        try {
+            if ($listController->deleteNre($nreNumber, $currentUser)) {
+                $_SESSION['nre_message'] = "✅ Requerimiento $nreNumber eliminado permanentemente.";
+            } else {
+                $_SESSION['nre_error'] = "❌ Error al intentar eliminar el requerimiento.";
+            }
+        } catch (Exception $e) {
+            $_SESSION['nre_error'] = "❌ " . $e->getMessage();
+        }
+    }
+    header('Location: ./');
+    exit;
+}
+
+if ($action === 'reassign_nre' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $nreNumber = $_POST['nre_number'] ?? '';
+    $newRequesterId = (int)($_POST['new_requester_id'] ?? 0);
+    if ($nreNumber && $newRequesterId) {
+        require_once __DIR__ . '/../src/models/User.php';
+        $currentUser = new User($user_id);
+        
+        $listController = new NreListController();
+        try {
+            if ($listController->reassignNre($nreNumber, $newRequesterId, $currentUser)) {
+                $_SESSION['nre_message'] = "✅ Requerimiento $nreNumber reasignado correctamente.";
+            } else {
+                $_SESSION['nre_error'] = "❌ Error al intentar reasignar el requerimiento.";
+            }
+        } catch (Exception $e) {
+            $_SESSION['nre_error'] = "❌ " . $e->getMessage();
+        }
+    }
+    header('Location: ./');
+    exit;
+}
+
 if (isset($_GET['success'])) {
     $_SESSION['nre_message'] = "✅ Solicitud enviada. Revisa tu correo.";
     header('Location: ./');
@@ -191,6 +240,7 @@ try {
 }
 $isAdmin = $currentUser->isAdmin();
 $isCompras = $currentUser->isCompras();
+$isSuperAdmin = $currentUser->isSuperAdmin();
 $canViewAll = $isAdmin || $isCompras;
 
 $includeCompleted = !isset($_GET['hide_completed']);
@@ -202,6 +252,8 @@ $type = $_GET['type'] ?? null;
 $listController = new NreListController();
 $nres = $listController->listNres($user_id, $canViewAll, $includeCompleted, $type, $limit, $offset);
 $totalNres = $listController->getTotalNres($user_id, $canViewAll, $includeCompleted, $type);
+
+$allUsersForReassign = $isSuperAdmin ? User::getAllUsers() : [];
 
 // Mostrar mensajes globales
 if (!empty($_SESSION['nre_message'])) {

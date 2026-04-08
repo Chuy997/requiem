@@ -17,8 +17,8 @@ class NreController {
         $this->emailService = new EmailService();
     }
 
-    // Ahora acepta rutas de archivos temporales
-    public function createFromForm(array $items, array $tempFilePaths, int $user_id = 1): bool {
+    // Ahora acepta rutas de archivos temporales y flag de requerimiento especial
+    public function createFromForm(array $items, array $tempFilePaths, int $user_id = 1, bool $isSpecialReq = false): bool {
         $today = new DateTime();
         $neededDate = clone $today;
         $neededDate->modify('+14 days');
@@ -59,7 +59,7 @@ class NreController {
             }
         }
         
-        if (($currentMonthlyTotal + $newRequestTotalUsd) > 4000) {
+        if (!$isSpecialReq && ($currentMonthlyTotal + $newRequestTotalUsd) > 4000) {
             $remaining = 4000 - $currentMonthlyTotal;
             throw new \Exception("Esta solicitud excede tu límite mensual de $4,000 USD para NREs. Has gastado $" . number_format($currentMonthlyTotal, 2) . " este mes. Disponible: $" . number_format(max(0, $remaining), 2));
         }
@@ -114,7 +114,8 @@ class NreController {
                 'arrival_date' => null,
                 'reason' => $item['reason'] ?? null,
                 'quotation_filename' => !empty($savedFiles) ? basename($savedFiles[0]) : null, // Asocia el primer archivo
-                'status' => 'Draft'
+                'status' => 'Draft',
+                'is_special_req' => $isSpecialReq ? 1 : 0
             ]);
         }
 

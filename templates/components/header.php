@@ -61,21 +61,23 @@ $action = $_GET['action'] ?? '';
                         <a class="nav-link <?= $currentPage === 'reports' ? 'active' : '' ?>" href="reports.php">
                             Reportes
                         </a>
-                    </li>
+                    </li>                    
                     
+                    <?php endif; ?>
+                    
+                    <?php if ($isAdmin): ?>
                     <li class="nav-item">
                         <a class="nav-link <?= $currentPage === 'exchange-rates' ? 'active' : '' ?>" href="exchange-rates.php">
                             Tipos de Cambio
                         </a>
                     </li>
-                    <?php endif; ?>
-                    
-                    <?php if ($isAdmin): ?>
+            
                     <li class="nav-item">
                         <a class="nav-link <?= $currentPage === 'admin-users' ? 'active' : '' ?>" href="admin-users.php">
                             Usuarios
                         </a>
                     </li>
+                    
                     <?php endif; ?>
                 </ul>
                 

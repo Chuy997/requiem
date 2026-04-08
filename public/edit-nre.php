@@ -79,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'unit_price_usd' => $unitPriceUsd,
             'unit_price_mxn' => $unitPriceMxn,
             'needed_date' => $_POST['needed_date'],
+            'sap_document_number' => $_POST['sap_document_number'] ?? null,
             'reason' => $_POST['reason'] ?? null
         ];
         
@@ -230,10 +231,18 @@ include __DIR__ . '/../templates/components/header.php';
                     </div>
                     
                     <div class="row">
-                        <div class="col-12 mb-3">
+                        <div class="col-md-8 mb-3">
                             <label class="form-label">Razón / Área de Aplicación</label>
                             <input type="text" name="reason" class="form-control" 
                                    value="<?= htmlspecialchars($nre['reason'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-primary">
+                                <i class="bi bi-hash"></i> Número de SAP
+                            </label>
+                            <input type="text" name="sap_document_number" class="form-control border-primary bg-primary-subtle" 
+                                   value="<?= htmlspecialchars($nre['sap_document_number'] ?? '') ?>"
+                                   placeholder="Ej: 123456789">
                         </div>
                     </div>
                     

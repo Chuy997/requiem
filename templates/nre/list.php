@@ -39,8 +39,10 @@ $stats = [
 ];
 
 foreach ($nres as $nre) {
-    $stats['total_usd'] += $nre['quantity'] * $nre['unit_price_usd'];
-    $stats['total_mxn'] += $nre['quantity'] * $nre['unit_price_mxn'];
+    if ($nre['status'] !== 'Cancelled') {
+        $stats['total_usd'] += $nre['quantity'] * $nre['unit_price_usd'];
+        $stats['total_mxn'] += $nre['quantity'] * $nre['unit_price_mxn'];
+    }
     
     switch ($nre['status']) {
         case 'Draft': $stats['draft']++; break;
@@ -56,6 +58,7 @@ foreach ($nres as $nre) {
 .stat-card {
     border-left: 4px solid;
     transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
 }
 .stat-card:hover {
     transform: translateY(-5px);
@@ -243,6 +246,7 @@ foreach ($nres as $nre) {
                             <div>
                                 <p class="text-muted mb-1 small">Total USD</p>
                                 <h4 class="mb-0 fw-bold"><?= number_format($stats['total_usd'], 0) ?></h4>
+                                <small class="text-info fw-bold" style="font-size:0.75rem;">(+IVA: $<?= number_format($stats['total_usd'] * 1.16, 0) ?>)</small>
                             </div>
                             <i class="bi bi-currency-dollar stat-icon text-info"></i>
                         </div>
@@ -257,6 +261,7 @@ foreach ($nres as $nre) {
                             <div>
                                 <p class="text-muted mb-1 small">Total MXN</p>
                                 <h4 class="mb-0 fw-bold"><?= number_format($stats['total_mxn'], 0) ?></h4>
+                                <small class="text-info fw-bold" style="font-size:0.75rem;">(+IVA: $<?= number_format($stats['total_mxn'] * 1.16, 0) ?>)</small>
                             </div>
                             <i class="bi bi-cash-stack stat-icon text-info"></i>
                         </div>
@@ -322,6 +327,10 @@ foreach ($nres as $nre) {
                                             <span class="badge bg-info text-dark">PackR</span>
                                         <?php else: ?>
                                             <span class="badge bg-secondary">NRE</span>
+                                        <?php endif; ?>
+                                        
+                                        <?php if (!empty($nre['is_special_req'])): ?>
+                                            <br><span class="badge bg-warning text-dark mt-1" style="font-size: 0.65rem;" title="Requiere Presupuesto Especial (> $4000 USD)"><i class="bi bi-star-fill"></i> </span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -538,15 +547,49 @@ foreach ($nres as $nre) {
                                                     </div>
                                                     
                                                 <?php elseif (in_array($nre['status'], ['Draft', 'Approved']) && $canManage): ?>
-                                                    <form method="POST" action="index.php?action=mark_in_process" class="d-inline">
-                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
-                                                        <button type="submit" 
-                                                                class="btn btn-outline-info"
-                                                                onclick="return confirm('¿Confirmar que ya está en SAP?');"
-                                                                title="Complete SAP">
-                                                            <i class="bi bi-arrow-right-circle"></i>
-                                                        </button>
-                                                    </form>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-info" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#inProcessModal-<?= htmlspecialchars($nre['nre_number']) ?>"
+                                                            title="Complete SAP">
+                                                        <i class="bi bi-arrow-right-circle"></i>
+                                                    </button>
+                                                    
+                                                    <!-- Modal In Process -->
+                                                    <div class="modal fade" id="inProcessModal-<?= htmlspecialchars($nre['nre_number']) ?>" tabindex="-1">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content text-start">
+                                                                <div class="modal-header bg-info text-white">
+                                                                    <h5 class="modal-title">
+                                                                        <i class="bi bi-arrow-right-circle"></i> Completar SAP
+                                                                    </h5>
+                                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <form method="POST" action="index.php?action=mark_in_process">
+                                                                    <div class="modal-body">
+                                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
+                                                                        
+                                                                        <div class="alert alert-info">
+                                                                            <strong>NRE:</strong> <?= htmlspecialchars($nre['nre_number']) ?><br>
+                                                                            <strong>Item:</strong> <?= htmlspecialchars($nre['item_description']) ?>
+                                                                        </div>
+
+                                                                        <div class="mb-3">
+                                                                            <label class="form-label">Número de requerimiento SAP <span class="text-danger">*</span></label>
+                                                                            <input type="text" name="sap_number" class="form-control" required placeholder="Ej. 123456789">
+                                                                            <div class="form-text">Por favor ingrese el número generado por SAP.</div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                                                        <button type="submit" class="btn btn-info text-white">
+                                                                            <i class="bi bi-check-circle"></i> Confirmar
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     
                                                     <button type="button" 
                                                             class="btn btn-outline-danger" 
@@ -582,8 +625,96 @@ foreach ($nres as $nre) {
                                                                     </div>
                                                                     <div class="modal-footer">
                                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                                                                        <button type="submit" class="btn btn-danger">
+                                                                        <button type="submit" class="btn btn-danger" onclick="return confirm('¿Está completamente seguro de que desea cancelar este requerimiento? Esta acción no se puede deshacer.');">
                                                                             <i class="bi bi-x-circle"></i> Confirmar Cancelación
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                <?php endif; ?>
+
+                                                <?php if (isset($isSuperAdmin) && $isSuperAdmin): ?>
+                                                    <!-- Super Admin: Reasignar -->
+                                                    <button type="button" 
+                                                            class="btn btn-outline-primary" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#reassignModal-<?= htmlspecialchars($nre['nre_number']) ?>"
+                                                            title="Reasignar Requerimiento">
+                                                        <i class="bi bi-person-lines-fill"></i>
+                                                    </button>
+                                                    
+                                                    <!-- Super Admin: Eliminar -->
+                                                    <button type="button" 
+                                                            class="btn btn-outline-dark" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#deleteNreModal-<?= htmlspecialchars($nre['nre_number']) ?>"
+                                                            title="Eliminar Requerimiento Físicamente">
+                                                        <i class="bi bi-trash-fill"></i>
+                                                    </button>
+
+                                                    <!-- Modal Reasignar -->
+                                                    <div class="modal fade" id="reassignModal-<?= htmlspecialchars($nre['nre_number']) ?>" tabindex="-1">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content text-start">
+                                                                <div class="modal-header bg-primary text-white">
+                                                                    <h5 class="modal-title">
+                                                                        <i class="bi bi-person-lines-fill"></i> Reasignar Requerimiento
+                                                                    </h5>
+                                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <form method="POST" action="index.php?action=reassign_nre">
+                                                                    <div class="modal-body">
+                                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
+                                                                        <div class="alert alert-info">
+                                                                            <strong>NRE:</strong> <?= htmlspecialchars($nre['nre_number']) ?><br>
+                                                                            <strong>Titular Actual:</strong> <?= htmlspecialchars($nre['requester_name'] ?? 'Desconocido') ?>
+                                                                        </div>
+                                                                        <div class="mb-3">
+                                                                            <label class="form-label">Nuevo Usuario <span class="text-danger">*</span></label>
+                                                                            <select name="new_requester_id" class="form-select" required>
+                                                                                <option value="">Seleccione un usuario...</option>
+                                                                                <?php foreach ($allUsersForReassign as $userOption): ?>
+                                                                                    <option value="<?= $userOption['id'] ?>"><?= htmlspecialchars($userOption['full_name']) ?></option>
+                                                                                <?php endforeach; ?>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                                                        <button type="submit" class="btn btn-primary" onclick="return confirm('¿Confirma que desea reasignar el NRE <?= htmlspecialchars($nre['nre_number']) ?> a este usuario?');">
+                                                                            <i class="bi bi-person-check-fill"></i> Reasignar
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Modal Eliminar -->
+                                                    <div class="modal fade" id="deleteNreModal-<?= htmlspecialchars($nre['nre_number']) ?>" tabindex="-1">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content text-start">
+                                                                <div class="modal-header bg-dark text-white">
+                                                                    <h5 class="modal-title">
+                                                                        <i class="bi bi-trash-fill"></i> Eliminar Requerimiento
+                                                                    </h5>
+                                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <form method="POST" action="index.php?action=delete_nre">
+                                                                    <div class="modal-body">
+                                                                        <input type="hidden" name="nre_number" value="<?= htmlspecialchars($nre['nre_number']) ?>">
+                                                                        <div class="alert alert-danger">
+                                                                            <strong>¡ATENCIÓN SUPER ADMIN!</strong><br>
+                                                                            Estás a punto de eliminar el NRE <strong><?= htmlspecialchars($nre['nre_number']) ?></strong> de la base de datos permanentemente.<br>
+                                                                            Esta acción destruirá todos los registros vinculados y no podrá deshacerse.
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                                        <button type="submit" class="btn btn-danger" onclick="return confirm('PELIGRO: ¿Está completa y absolutamente seguro de eliminar permanentemente el requerimiento <?= htmlspecialchars($nre['nre_number']) ?>?');">
+                                                                            <i class="bi bi-trash-fill"></i> Confirmo la eliminación permanente
                                                                         </button>
                                                                     </div>
                                                                 </form>

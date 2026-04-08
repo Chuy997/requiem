@@ -19,15 +19,16 @@ class Nre {
                 nre_number, requester_id, item_description, item_code, operation,
                 customizer, brand, model, new_or_replace, quantity,
                 unit_price_usd, unit_price_mxn, needed_date, arrival_date, reason,
-                quotation_filename, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                quotation_filename, status, is_special_req, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $arrivalDate = $data['arrival_date'] ?? null;
         $quotationFilename = $data['quotation_filename'] ?? null;
+        $isSpecialReq = (int)($data['is_special_req'] ?? 0);
 
         $stmt->bind_param(
-            'sisssssssiddsssssss',
+            'sisssssssiddsssssiss',
             $data['nre_number'],
             $data['requester_id'],
             $data['item_description'],
@@ -45,6 +46,7 @@ class Nre {
             $data['reason'],
             $quotationFilename,
             $data['status'],
+            $isSpecialReq,
             $createdAt,
             $createdAt
         );
@@ -110,31 +112,31 @@ class Nre {
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    public function markAsInProcess(string $nreNumber, int $requesterId, bool $isAdmin = false): bool {
+    public function markAsInProcess(string $nreNumber, int $requesterId, bool $isAdmin = false, string $sapNumber = ''): bool {
         if ($isAdmin) {
             // Admin puede marcar cualquier NRE
             $stmt = $this->connection->prepare("
                 UPDATE nres 
-                SET status = 'In Process', updated_at = NOW()
+                SET status = 'In Process', sap_document_number = ?, updated_at = NOW()
                 WHERE nre_number = ? AND status IN ('Draft', 'Approved')
             ");
             if (!$stmt) {
                 error_log("Prepare failed (markAsInProcess): " . $this->connection->error);
                 return false;
             }
-            $stmt->bind_param('s', $nreNumber);
+            $stmt->bind_param('ss', $sapNumber, $nreNumber);
         } else {
             // Usuario normal solo puede marcar sus propios NREs
             $stmt = $this->connection->prepare("
                 UPDATE nres 
-                SET status = 'In Process', updated_at = NOW()
+                SET status = 'In Process', sap_document_number = ?, updated_at = NOW()
                 WHERE nre_number = ? AND requester_id = ? AND status IN ('Draft', 'Approved')
             ");
             if (!$stmt) {
                 error_log("Prepare failed (markAsInProcess): " . $this->connection->error);
                 return false;
             }
-            $stmt->bind_param('si', $nreNumber, $requesterId);
+            $stmt->bind_param('ssi', $sapNumber, $nreNumber, $requesterId);
         }
         $executed = $stmt->execute();
         $affected = $stmt->affected_rows;
@@ -280,13 +282,14 @@ class Nre {
                 unit_price_usd = ?,
                 unit_price_mxn = ?,
                 needed_date = ?,
+                sap_document_number = ?,
                 reason = ?,
                 updated_at = NOW()
             WHERE nre_number = ?
         ");
         
         $stmt->bind_param(
-            'sssssssiddsss',
+            'sssssssiddssss',
             $data['item_description'],
             $data['item_code'],
             $data['operation'],
@@ -298,6 +301,7 @@ class Nre {
             $data['unit_price_usd'],
             $data['unit_price_mxn'],
             $data['needed_date'],
+            $data['sap_document_number'],
             $data['reason'],
             $nreNumber
         );
@@ -468,10 +472,26 @@ class Nre {
             return false;
         }
         
+        if (in_array($nre['status'], ['Arrived', 'Cancelled'])) {
+            return false;
+        }
+        
         if ($isAdmin) {
             return true;
         }
         
         return ($nre['requester_id'] == $userId && $nre['status'] === 'Draft');
+    }
+
+    public function delete(string $nreNumber): bool {
+        $stmt = $this->connection->prepare("DELETE FROM nres WHERE nre_number = ?");
+        $stmt->bind_param('s', $nreNumber);
+        return $stmt->execute();
+    }
+    
+    public function reassign(string $nreNumber, int $newRequesterId): bool {
+        $stmt = $this->connection->prepare("UPDATE nres SET requester_id = ? WHERE nre_number = ?");
+        $stmt->bind_param('is', $newRequesterId, $nreNumber);
+        return $stmt->execute();
     }
 }

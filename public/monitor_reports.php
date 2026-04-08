@@ -1,17 +1,14 @@
 <?php
-// public/reports.php
-// Página de generación y descarga de reportes con gráficas
+// public/monitor_reports.php
+// Unauthenticated entry point for analysis and reports
 
-require_once __DIR__ . '/../src/middleware/AuthMiddleware.php';
-require_once __DIR__ . '/../src/models/User.php';
 require_once __DIR__ . '/../src/models/Nre.php';
+require_once __DIR__ . '/../src/models/User.php';
 
-requireAuth();
+// Virtual env vars for public flow
+$isAdmin = true;
 
-$currentUser = new User($_SESSION['user_id']);
-$isAdmin = $currentUser->isAdmin();
-
-// Procesar descarga de reporte
+// Download report handling
 if (isset($_GET['download'])) {
     $format = $_GET['format'] ?? 'csv';
     $filters = [
@@ -46,7 +43,7 @@ if (isset($_GET['download'])) {
             $totalMxn = $nre['quantity'] * $nre['unit_price_mxn'];
             
             fputcsv($output, [
-                $nre['requirement_type'] ?? 'NRE',
+                ($nre['requirement_type'] ?? 'NRE') . (!empty($nre['is_special_req']) ? ' (Especial)' : ''),
                 $nre['nre_number'],
                 $nre['requester_name'] ?? '',
                 $nre['requester_email'] ?? '',
@@ -93,7 +90,7 @@ if (isset($_GET['download'])) {
             $totalUsd = $nre['quantity'] * $nre['unit_price_usd'];
             $totalMxn = $nre['quantity'] * $nre['unit_price_mxn'];
             echo '<tr>';
-            echo '<td>' . htmlspecialchars($nre['requirement_type'] ?? 'NRE') . '</td>';
+            echo '<td>' . htmlspecialchars(($nre['requirement_type'] ?? 'NRE') . (!empty($nre['is_special_req']) ? ' (Especial)' : '')) . '</td>';
             echo '<td>' . htmlspecialchars($nre['nre_number']) . '</td>';
             echo '<td>' . htmlspecialchars($nre['requester_name'] ?? '') . '</td>';
             echo '<td>' . htmlspecialchars($nre['requester_email'] ?? '') . '</td>';
@@ -209,8 +206,8 @@ if ($isAdmin) {
     $chartRequesterData = json_encode(array_column($topRequesters, 'count'));
 }
 
-$pageTitle = 'Reportes y Análisis';
-include __DIR__ . '/../templates/components/header.php';
+$pageTitle = 'Monitor - Reports & Analysis';
+include __DIR__ . '/../templates/components/header_monitor.php';
 ?>
 
 <!-- Chart.js -->
@@ -227,7 +224,7 @@ include __DIR__ . '/../templates/components/header.php';
 <div class="row">
     <div class="col-12">
         <h2 class="mb-4">
-            <i class="bi bi-graph-up-arrow"></i> Reportes y Análisis de NREs
+            <i class="bi bi-graph-up-arrow"></i> NRE Reports & Analysis <span class="badge bg-secondary ms-2" style="font-size:0.5em"><i class="bi bi-eye"></i> Read Only</span>
         </h2>
         
         <!-- Estadísticas Principales -->
@@ -254,74 +251,74 @@ include __DIR__ . '/../templates/components/header.php';
                     <div class="card-body">
                         <h6 class="card-title text-info"><i class="bi bi-cash-stack"></i> Total MXN</h6>
                         <h2 class="mb-0 text-info fw-bold">$<?= number_format($stats['total_mxn'], 0) ?></h2>
-                        <small class="text-info fw-bold">(+IVA: $<?= number_format($stats['total_mxn'] * 1.16, 0) ?>)</small>
+                        <small class="text-info fw-bold">(+VAT: $<?= number_format($stats['total_mxn'] * 1.16, 0) ?>)</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="card text-dark bg-warning bg-opacity-25 shadow-sm border border-warning">
                     <div class="card-body">
-                        <h6 class="card-title text-warning"><i class="bi bi-hourglass-split"></i> En Proceso</h6>
+                        <h6 class="card-title text-warning"><i class="bi bi-hourglass-split"></i> In Process</h6>
                         <h2 class="mb-0 text-warning fw-bold"><?= $stats['by_status']['In Process'] ?></h2>
                     </div>
                 </div>
             </div>
         </div>
-           
+        
         <!-- Filtros -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white border-bottom">
-                <h5 class="mb-0 text-primary"><i class="bi bi-funnel"></i> Filtros</h5>
+                <h5 class="mb-0 text-primary"><i class="bi bi-funnel"></i> Filters</h5>
             </div>
             <div class="card-body">
-                <form method="GET" action="reports.php" class="row g-3">
+                <form method="GET" action="monitor_reports.php" class="row g-3">
                     <div class="col-md-3">
-    <label class="form-label">Tipo</label>
-    <select name="requirement_type" class="form-select">
-        <option value="">Todos</option>
-        <option value="NRE" <?= ($filters['requirement_type'] === 'NRE') ? 'selected' : '' ?>>NRE</option>
-        <option value="PackR" <?= ($filters['requirement_type'] === 'PackR') ? 'selected' : '' ?>>PackR</option>
-    </select>
-</div>
+                        <label class="form-label">Type</label>
+                        <select name="requirement_type" class="form-select">
+                            <option value="">All</option>
+                            <option value="NRE" <?= ($filters['requirement_type'] === 'NRE') ? 'selected' : '' ?>>NRE</option>
+                            <option value="PackR" <?= ($filters['requirement_type'] === 'PackR') ? 'selected' : '' ?>>PackR</option>
+                        </select>
+                    </div>
                     <div class="col-md-3">
-                        <label class="form-label">Estado</label>
+                        <label class="form-label">Status</label>
                         <div class="dropdown">
-    <button class="btn btn-outline-primary dropdown-toggle w-100 text-start" type="button" id="statusDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-        Seleccionar Estado
-    </button>
-    <ul class="dropdown-menu" aria-labelledby="statusDropdown">
-        <?php 
-        $options = ['Draft', 'Approved', 'In Process', 'Arrived', 'Cancelled'];
-        foreach ($options as $opt): 
-        ?>
-            <li>
-                <label class="dropdown-item">
-                    <input type="checkbox" class="form-check-input me-1" name="status[]" value="<?= $opt ?>" <?= in_array($opt, $filters['status'] ?? []) ? 'checked' : '' ?>>
-                    <?= $opt ?>
-                </label>
-            </li>
-        <?php endforeach; ?>
-    </ul>
-</div>
+                            <button class="btn btn-outline-primary dropdown-toggle w-100 text-start" type="button" id="statusDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                Select Status
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="statusDropdown">
+                                <?php 
+                                $options = ['Draft', 'Approved', 'In Process', 'Arrived', 'Cancelled'];
+                                foreach ($options as $opt): 
+                                ?>
+                                    <li>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" class="form-check-input me-1" name="status[]" value="<?= $opt ?>" <?= in_array($opt, $filters['status'] ?? []) ? 'checked' : '' ?>>
+                                            <?= $opt ?>
+                                        </label>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
                     </div>
                     
                     <div class="col-md-3">
-                        <label class="form-label">Fecha Desde</label>
+                        <label class="form-label">Date From</label>
                         <input type="date" name="date_from" class="form-control" 
                                value="<?= htmlspecialchars($filters['date_from']) ?>">
                     </div>
                     
                     <div class="col-md-3">
-                        <label class="form-label">Fecha Hasta</label>
+                        <label class="form-label">Date To</label>
                         <input type="date" name="date_to" class="form-control" 
                                value="<?= htmlspecialchars($filters['date_to']) ?>">
                     </div>
                     
                     <?php if ($isAdmin): ?>
                     <div class="col-md-3">
-                        <label class="form-label">Solicitante</label>
+                        <label class="form-label">Requester</label>
                         <select name="requester_id" class="form-select">
-                            <option value="">Todos</option>
+                            <option value="">All</option>
                             <?php foreach ($users as $user): ?>
                             <option value="<?= $user['id'] ?>" 
                                     <?= ($filters['requester_id'] == $user['id']) ? 'selected' : '' ?>>
@@ -334,10 +331,10 @@ include __DIR__ . '/../templates/components/header.php';
                     
                     <div class="col-12">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-search"></i> Filtrar
+                            <i class="bi bi-search"></i> Filter
                         </button>
-                        <a href="reports.php" class="btn btn-secondary">
-                            <i class="bi bi-x-circle"></i> Limpiar
+                        <a href="monitor_reports.php" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Clear
                         </a>
                     </div>
                 </form>
@@ -347,22 +344,22 @@ include __DIR__ . '/../templates/components/header.php';
         <!-- Botones de Descarga -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white border-bottom">
-                <h5 class="mb-0 text-success"><i class="bi bi-download"></i> Descargar Reporte</h5>
+                <h5 class="mb-0 text-success"><i class="bi bi-download"></i> Download Report</h5>
             </div>
             <div class="card-body">
-                <p>Descargar los datos filtrados en el formato deseado:</p>
+                <p>Download filtered data in desired format:</p>
                 <div class="btn-group">
-                    <a href="reports.php?download=1&format=csv&<?= http_build_query($filters) ?>" 
+                    <a href="monitor_reports.php?download=1&format=csv&<?= http_build_query($filters) ?>" 
                        class="btn btn-outline-success">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> Descargar CSV
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Download CSV
                     </a>
-                    <a href="reports.php?download=1&format=excel&<?= http_build_query($filters) ?>" 
+                    <a href="monitor_reports.php?download=1&format=excel&<?= http_build_query($filters) ?>" 
                        class="btn btn-outline-success">
-                        <i class="bi bi-file-earmark-excel"></i> Descargar Excel
+                        <i class="bi bi-file-earmark-excel"></i> Download Excel
                     </a>
                 </div>
                 <small class="text-muted d-block mt-2">
-                    Total de registros: <strong><?= $stats['total'] ?></strong>
+                    Total records: <strong><?= $stats['total'] ?></strong>
                 </small>
             </div>
         </div>
@@ -370,15 +367,15 @@ include __DIR__ . '/../templates/components/header.php';
         <!-- Vista Previa de Datos -->
         <div class="card shadow-sm">
             <div class="card-header bg-white border-bottom">
-                <h5 class="mb-0 text-muted"><i class="bi bi-table"></i> Vista Previa de Datos</h5>
+                <h5 class="mb-0 text-muted"><i class="bi bi-table"></i> Data Preview</h5>
             </div>
             <div class="card-body">
                 <style>
                 .table-preview-container { width: 100%; overflow-x: auto; }
-                .table-preview { font-size: 0.8rem; width: 100%; min-width: 1100px; margin-bottom: 0; border-collapse: collapse; }
+                .table-preview { font-size: 0.8rem; width: 100%; min-width: 1000px; margin-bottom: 0; border-collapse: collapse; }
                 .table-preview th { font-size: 0.75rem; font-weight: 600; padding: 0.75rem 0.5rem; vertical-align: middle; white-space: nowrap; color: #495057; border-bottom: 2px solid #dee2e6; text-transform: uppercase; letter-spacing: 0.3px; }
                 .table-preview td { vertical-align: middle; padding: 0.75rem 0.5rem; border-bottom: 1px solid #f1f3f5; color: #343a40; }
-                .table-preview th:nth-child(4), .table-preview td:nth-child(4) { white-space: normal; width: 25%; line-height: 1.5; }
+                .table-preview th:nth-child(4), .table-preview td:nth-child(4) { white-space: normal; width: 30%; line-height: 1.5; }
                 .table-preview td:not(:nth-child(4)) { white-space: nowrap; }
                 .table-preview td:nth-child(2) code { font-size: 0.75rem; background-color: #f8f9fa; color: #d63384; padding: 0.3rem 0.5rem; border-radius: 4px; font-weight: bold; border: 1px solid #e9ecef; }
                 .table-preview tr:hover { background-color: #fafbfc; }
@@ -387,26 +384,24 @@ include __DIR__ . '/../templates/components/header.php';
                     <table class="table table-hover table-preview mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Tipo</th>
+                                <th>Type</th>
                                 <th>NRE</th>
-                                <th>Solicitante</th>
-                                <th>Descripción</th>
-                                <th>Cantidad</th>
-                                <th>Precio USD</th>
-                                <th>Precio MXN</th>
-                                <th>Total USD</th>
-                                <th>Total MXN</th>
-                                <th>Total USD (+IVA)</th>
-                                <th>Total MXN (+IVA)</th>
-                                <th>Estado</th>
-                                <th>Fecha</th>
+                                <th>Requester</th>
+                                <th>Description</th>
+                                <th>Qty</th>
+                                <th>USD Price</th>
+                                <th>MXN Price</th>
+                                <th>Total USD (+VAT)</th>
+                                <th>Total MXN (+VAT)</th>
+                                <th>Status</th>
+                                <th>Date</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($nres)): ?>
                             <tr>
-                                <td colspan="13" class="text-center text-muted">
-                                    <i class="bi bi-inbox"></i> No hay datos para mostrar
+                                <td colspan="11" class="text-center text-muted">
+                                    <i class="bi bi-inbox"></i> No data to display
                                 </td>
                             </tr>
                             <?php else: ?>
@@ -434,8 +429,6 @@ include __DIR__ . '/../templates/components/header.php';
                                     <td><?= $nre['quantity'] ?></td>
                                     <td>$<?= number_format($nre['unit_price_usd'], 2) ?></td>
                                     <td>$<?= number_format($nre['unit_price_mxn'], 2) ?></td>
-                                    <td><strong>$<?= number_format($nre['quantity'] * $nre['unit_price_usd'], 2) ?></strong></td>
-                                    <td><strong>$<?= number_format($nre['quantity'] * $nre['unit_price_mxn'], 2) ?></strong></td>
                                     <td><strong class="text-success">$<?= number_format(($nre['quantity'] * $nre['unit_price_usd']) * 1.16, 2) ?></strong></td>
                                     <td><strong class="text-success">$<?= number_format(($nre['quantity'] * $nre['unit_price_mxn']) * 1.16, 2) ?></strong></td>
                                     <td>
@@ -460,10 +453,10 @@ include __DIR__ . '/../templates/components/header.php';
                                 
                                 <?php if (count($nres) > 50): ?>
                                 <tr>
-                                    <td colspan="10" class="text-center text-muted">
+                                    <td colspan="11" class="text-center text-muted">
                                         <i class="bi bi-info-circle"></i>
-                                        Mostrando primeros 50 de <?= count($nres) ?> registros. 
-                                        Descarga el reporte completo para ver todos.
+                                        Showing first 50 of <?= count($nres) ?> records. 
+                                        Download the full report to see all records.
                                     </td>
                                 </tr>
                                 <?php endif; ?>
@@ -477,7 +470,7 @@ include __DIR__ . '/../templates/components/header.php';
             <div class="col-md-6 mb-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-white border-bottom">
-                        <h5 class="mb-0 text-dark"><i class="bi bi-pie-chart"></i> NREs por Estado</h5>
+                        <h5 class="mb-0 text-dark"><i class="bi bi-pie-chart"></i> NREs by Status</h5>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -491,7 +484,7 @@ include __DIR__ . '/../templates/components/header.php';
             <div class="col-md-6 mb-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-white border-bottom">
-                        <h5 class="mb-0 text-dark"><i class="bi bi-bar-chart"></i> NREs por Operación</h5>
+                        <h5 class="mb-0 text-dark"><i class="bi bi-bar-chart"></i> NREs by Operation</h5>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -505,7 +498,7 @@ include __DIR__ . '/../templates/components/header.php';
             <div class="col-md-12 mb-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-white border-bottom">
-                        <h5 class="mb-0 text-dark"><i class="bi bi-graph-up"></i> Tendencia Mensual</h5>
+                        <h5 class="mb-0 text-dark"><i class="bi bi-graph-up"></i> Monthly Trend</h5>
                     </div>
                     <div class="card-body">
                         <div class="chart-container" style="height: 350px;">
@@ -520,7 +513,7 @@ include __DIR__ . '/../templates/components/header.php';
             <div class="col-md-12 mb-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-white border-bottom">
-                        <h5 class="mb-0 text-dark"><i class="bi bi-people"></i> Top 10 Solicitantes</h5>
+                        <h5 class="mb-0 text-dark"><i class="bi bi-people"></i> Top 10 Requesters</h5>
                     </div>
                     <div class="card-body">
                         <div class="chart-container" style="height: 350px;">
@@ -593,7 +586,7 @@ new Chart(operationCtx, {
     data: {
         labels: <?= $chartOperationLabels ?>,
         datasets: [{
-            label: 'Cantidad de NREs',
+            label: 'NRE Count',
             data: <?= $chartOperationData ?>,
             backgroundColor: colors.info,
             borderColor: colors.info,
@@ -628,7 +621,7 @@ new Chart(monthlyCtx, {
         labels: <?= $chartMonthLabels ?>,
         datasets: [
             {
-                label: 'Cantidad de NREs',
+                label: 'NRE Count',
                 data: <?= $chartMonthCounts ?>,
                 backgroundColor: 'rgba(13, 110, 253, 0.5)',
                 borderColor: colors.primary,
@@ -668,7 +661,7 @@ new Chart(monthlyCtx, {
                 beginAtZero: true,
                 title: {
                     display: true,
-                    text: 'Cantidad de NREs'
+                    text: 'NRE Count'
                 }
             },
             y1: {
@@ -696,7 +689,7 @@ new Chart(requesterCtx, {
     data: {
         labels: <?= $chartRequesterLabels ?>,
         datasets: [{
-            label: 'Cantidad de NREs',
+            label: 'NRE Count',
             data: <?= $chartRequesterData ?>,
             backgroundColor: colors.primary,
             borderColor: colors.primary,

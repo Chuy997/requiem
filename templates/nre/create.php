@@ -180,6 +180,13 @@ include __DIR__ . '/../components/header.php';
             <div class="form-text">Puedes adjuntar múltiples archivos.</div>
         </div>
 
+        <div class="mb-4 form-check bg-light p-3 border rounded">
+            <input type="checkbox" class="form-check-input" id="is_special_req" name="is_special_req" value="1" <?= (isset($_SESSION['nre_form_data']['is_special_req']) || !empty($_SESSION['nre_is_special_req'])) ? 'checked' : '' ?> style="margin-left: 0;">
+            <label class="form-check-label fw-bold text-danger" for="is_special_req" style="margin-left: 1.5rem;">
+                ⚠️ Este es un requerimiento especial (Permite exceder el límite de presupuesto mensual de $4,000 USD)
+            </label>
+        </div>
+
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">Vista Previa y Enviar</button>
             <a href="index.php" class="btn btn-secondary">Cancelar</a>
