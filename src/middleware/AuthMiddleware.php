@@ -6,9 +6,8 @@
  * Redirige a login.php si no hay sesión activa.
  */
 function requireAuth() {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
+    require_once __DIR__ . '/../config/session.php';
+    secure_session_start();
 
     if (!isset($_SESSION['user_id'])) {
         header('Location: login.php');

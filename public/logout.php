@@ -1,7 +1,8 @@
 <?php
 // public/logout.php
 
-session_start();
+require_once __DIR__ . '/../src/config/session.php';
+secure_session_start();
 $_SESSION = []; // Destruir todas las variables de sesión
 
 // Si se usan cookies de sesión, eliminarlas
