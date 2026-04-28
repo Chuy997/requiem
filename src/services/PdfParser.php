@@ -81,7 +81,7 @@ class PdfParser {
                     $data['items'][] = $currentItem;
                 }
                 
-                $quantity = (int)$matches[4];
+                $quantity = (int)str_replace(',', '', $matches[4]);
                 $unitPrice = (float)str_replace(',', '', $matches[5]);
                 $total = (float)str_replace(',', '', $matches[8]);
                 
