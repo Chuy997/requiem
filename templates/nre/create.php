@@ -5,6 +5,14 @@ $hasError = !empty($_SESSION['nre_form_error']);
 $errorMsg = $_SESSION['nre_form_error'] ?? '';
 unset($_SESSION['nre_form_data'], $_SESSION['nre_form_error']);
 
+// ─── VERIFICACIÓN CRÍTICA: Tipo de cambio del mes actual ──────────────────────
+require_once __DIR__ . '/../../src/models/ExchangeRate.php';
+$_erModel       = new ExchangeRate();
+$_erOk          = $_erModel->isCurrentMonthRateSet();
+$_erMonthLabel  = $_erModel->getCurrentMonthLabel();
+$_erPeriod      = $_erModel->getCurrentMonthPeriod();
+// ─────────────────────────────────────────────────────────────────────────────
+
 $pageTitle = 'Nuevo NRE';
 include __DIR__ . '/../components/header.php';
 ?>
@@ -21,9 +29,44 @@ include __DIR__ . '/../components/header.php';
 
     <h2 class="mb-4">Crear Solicitud de Compra (NRE)</h2>
 
+    <?php if (!$_erOk): ?>
+        <!-- BLOQUEO CRÍTICO: Sin tipo de cambio del mes actual -->
+        <div class="alert alert-danger border-danger shadow-sm mb-4" role="alert" style="border-left: 6px solid #dc3545;">
+            <div class="d-flex align-items-start gap-3">
+                <i class="bi bi-shield-lock-fill fs-2 text-danger flex-shrink-0 mt-1"></i>
+                <div>
+                    <h5 class="alert-heading fw-bold mb-1">
+                        🔒 Creación de Requerimientos Bloqueada
+                    </h5>
+                    <p class="mb-2">
+                        No se puede generar ningún NRE porque el
+                        <strong>tipo de cambio de <?= htmlspecialchars($_erMonthLabel) ?></strong>
+                        (período <code><?= htmlspecialchars($_erPeriod) ?></code>)
+                        aún no ha sido configurado.
+                    </p>
+                    <p class="mb-2 fw-semibold text-danger">
+                        Todo requerimiento generado en <?= htmlspecialchars($_erMonthLabel) ?> debe utilizar el tipo de cambio correspondiente a ese mes, sin excepciones.
+                    </p>
+                    <a href="exchange-rates.php" class="btn btn-danger btn-sm mt-1">
+                        <i class="bi bi-currency-exchange"></i> Ir a Configuración de Tipos de Cambio
+                    </a>
+                </div>
+            </div>
+        </div>
+    <?php else: ?>
+        <div class="alert alert-success alert-sm d-flex align-items-center gap-2 py-2 mb-3" role="alert">
+            <i class="bi bi-check-circle-fill text-success"></i>
+            <small>
+                Tipo de cambio de <strong><?= htmlspecialchars($_erMonthLabel) ?></strong> activo:
+                <strong>$<?= number_format($_erModel->getRateForPeriod($_erPeriod), 4) ?> MXN/USD</strong>
+            </small>
+        </div>
+    <?php endif; ?>
+
     <?php if ($hasError): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($errorMsg) ?></div>
     <?php endif; ?>
+
 
     <form action="index.php?action=preview" method="POST" enctype="multipart/form-data" id="nreForm">
         <div id="items-container">
@@ -188,7 +231,7 @@ include __DIR__ . '/../components/header.php';
         </div>
 
         <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary">Vista Previa y Enviar</button>
+            <button type="submit" class="btn btn-primary" <?= !$_erOk ? 'disabled title="Configure el tipo de cambio del mes antes de crear requerimientos"' : '' ?>>Vista Previa y Enviar</button>
             <a href="index.php" class="btn btn-secondary">Cancelar</a>
         </div>
     </form>

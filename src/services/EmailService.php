@@ -9,17 +9,19 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 
-class EmailService {
+class EmailService
+{
     private $mail;
 
-    public function __construct() {
+    public function __construct()
+    {
         if (!isset($_ENV['SMTP_HOST'])) {
             $this->loadEnv(__DIR__ . '/../../.env');
         }
 
         $this->mail = new PHPMailer(true);
         $this->mail->SMTPDebug = 0; // Cambia a 3 si necesitas depurar
-        $this->mail->Debugoutput = function($str) {
+        $this->mail->Debugoutput = function ($str) {
             file_put_contents(__DIR__ . '/../../logs/smtp_debug.log', "SMTP: $str\n", FILE_APPEND);
         };
 
@@ -39,16 +41,17 @@ class EmailService {
         $this->mail->addAddress('jesus.muro@xinya-la.com',);
         $this->mail->addAddress('cesar.gutierrez@xinya-la.com',);
         $this->mail->addAddress('xysw@xinya-cn.com',);
-        $this->mail->addAddress('pedro.dabdoub@xinya-cn.com',);
         $this->mail->addAddress('rocio.cortes@xinya-la.com',);
-        $this->mail->addAddress('dyane.gutierrez@xinya-cn.com');
+        $this->mail->addAddress('jose.jimenez@xinya-la.com');
         $this->mail->addAddress('zaira.villegas@xinya-la.com');
         $this->mail->addAddress('laura.lopez@xinya-la.com',);
         $this->mail->addAddress('wuzhijun@xinya-cn.com',);
         $this->mail->addAddress('weiguoli@xinya-cn.com',);
+        $this->mail->addAddress('javier.ramirez@xinya-la.com',);
     }
 
-    private function loadEnv(string $envFile): void {
+    private function loadEnv(string $envFile): void
+    {
         if (file_exists($envFile)) {
             $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
             foreach ($lines as $line) {
@@ -60,7 +63,8 @@ class EmailService {
         }
     }
 
-    public function sendApprovalRequest(string $subject, string $body, array $attachments = [], ?string $replyTo = null): bool {
+    public function sendApprovalRequest(string $subject, string $body, array $attachments = [], ?string $replyTo = null): bool
+    {
         try {
             if ($replyTo) {
                 $this->mail->addReplyTo($replyTo);

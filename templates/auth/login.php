@@ -14,11 +14,20 @@
     </a>
 
     <div class="login-card">
+        <?php if (!empty($sessionExpired)): ?>
+            <div class="alert alert-warning mb-4" role="alert">
+                <i class="bi bi-clock-history me-2"></i>
+                <strong>Sesión expirada</strong><br>
+                <small>Tu sesión se cerró automáticamente por 15 minutos de inactividad. Por favor, vuelve a iniciar sesión.</small>
+            </div>
+        <?php endif; ?>
+
         <?php if (!empty($error)): ?>
             <div class="alert alert-danger mb-4" role="alert">
                 <?= htmlspecialchars($error) ?>
             </div>
         <?php endif; ?>
+
 
         <form method="POST" action="login.php">
             <div class="mb-4">

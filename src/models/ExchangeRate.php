@@ -21,11 +21,40 @@ class ExchangeRate {
         return $row ? (float) $row['rate_mxn_per_usd'] : null;
     }
 
+    public function getLatestRate(): ?array {
+        $result = $this->connection->query("SELECT * FROM exchange_rates ORDER BY period DESC LIMIT 1");
+        return $result ? $result->fetch_assoc() : null;
+    }
+
     public function getCurrentMonthPeriod(): string {
         $currentMonth = new DateTime();
         return $currentMonth->format('Ym'); // Ej: '202512'
     }
-    
+
+    /**
+     * Verifica si el tipo de cambio del mes actual ya está configurado.
+     * Usar este método en controllers y templates para bloquear acciones.
+     */
+    public function isCurrentMonthRateSet(): bool {
+        return $this->getRateForPeriod($this->getCurrentMonthPeriod()) !== null;
+    }
+
+    /**
+     * Devuelve el nombre legible del mes actual en español, ej: "Junio 2026"
+     */
+    public function getCurrentMonthLabel(): string {
+        $monthNames = [
+            '01' => 'Enero',    '02' => 'Febrero', '03' => 'Marzo',
+            '04' => 'Abril',    '05' => 'Mayo',     '06' => 'Junio',
+            '07' => 'Julio',    '08' => 'Agosto',   '09' => 'Septiembre',
+            '10' => 'Octubre',  '11' => 'Noviembre','12' => 'Diciembre'
+        ];
+        $period = $this->getCurrentMonthPeriod();
+        $year   = substr($period, 0, 4);
+        $month  = substr($period, 4, 2);
+        return ($monthNames[$month] ?? $month) . ' ' . $year;
+    }
+
     // Método legacy mantenido por compatibilidad
     public function getLastMonthPeriod(): string {
         return $this->getCurrentMonthPeriod();

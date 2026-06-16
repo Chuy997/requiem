@@ -13,13 +13,13 @@ class PackRequirement {
     }
     
     /**
-     * Crea un PackR desde un PDF de SAP
-     * El PackR se crea directamente en estado "In Process"
+     * Parsea un PDF de SAP y prepara los datos para la vista previa
      */
-    public function createFromPdf(string $pdfPath, int $userId): bool {
+    public function parsePdfForPreview(string $pdfPath): array {
         try {
             // Validar formato del PDF
             if (!PdfParser::validateSapFormat($pdfPath)) {
+                PdfParser::logFailedParse($pdfPath, "El PDF no tiene el formato esperado de SAP");
                 throw new Exception("El PDF no tiene el formato esperado de SAP");
             }
             
@@ -27,7 +27,66 @@ class PackRequirement {
             $data = PdfParser::parseSapPurchaseRequest($pdfPath);
             
             if (empty($data['items'])) {
+                PdfParser::logFailedParse($pdfPath, "No se pudieron extraer items del PDF");
                 throw new Exception("No se pudieron extraer items del PDF");
+            }
+            
+            // Validar si el documento SAP ya existe
+            $checkStmt = $this->connection->prepare("SELECT COUNT(*) as count FROM nres WHERE sap_document_number = ? AND requirement_type = 'PackR'");
+            $checkStmt->bind_param('s', $data['sap_document_number']);
+            $checkStmt->execute();
+            $result = $checkStmt->get_result()->fetch_assoc();
+            
+            if ($result['count'] > 0) {
+                throw new Exception("El documento SAP " . $data['sap_document_number'] . " ya ha sido procesado anteriormente.");
+            }
+            
+            // Determinar tipo de cambio — CRÍTICO: solo se permite el del mes actual
+            require_once __DIR__ . '/ExchangeRate.php';
+            $exchangeRateObj = new ExchangeRate();
+            $currentPeriod = $exchangeRateObj->getCurrentMonthPeriod();
+            $rate = $exchangeRateObj->getRateForPeriod($currentPeriod);
+
+            if ($rate === null) {
+                // Calcular nombre del mes en español para el mensaje de error
+                $monthNames = [
+                    '01' => 'Enero', '02' => 'Febrero', '03' => 'Marzo',
+                    '04' => 'Abril', '05' => 'Mayo', '06' => 'Junio',
+                    '07' => 'Julio', '08' => 'Agosto', '09' => 'Septiembre',
+                    '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre'
+                ];
+                $year  = substr($currentPeriod, 0, 4);
+                $month = substr($currentPeriod, 4, 2);
+                $monthLabel = ($monthNames[$month] ?? $month) . ' ' . $year;
+
+                error_log("[PackRequirement] Tipo de cambio no configurado para el período: $currentPeriod");
+                throw new \Exception(
+                    "No se puede importar el requerimiento de empaque. El tipo de cambio para $monthLabel " .
+                    "(período $currentPeriod) aún no está configurado. " .
+                    "Por favor, solicita al administrador que configure el tipo de cambio del mes en curso " .
+                    "en la sección de Tipos de Cambio antes de continuar."
+                );
+            }
+
+            $data['exchange_rate'] = $rate;
+            $data['exchange_rate_period'] = $currentPeriod;
+            $data['exchange_rate_is_fallback'] = false;
+            
+            return $data;
+            
+        } catch (Exception $e) {
+            error_log("[PackRequirement] Error parseando para vista previa: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Crea los registros a partir de los datos confirmados por el usuario
+     */
+    public function createFromPreviewData(array $data, string $tempPdfPath, int $userId): bool {
+        try {
+            if (!file_exists($tempPdfPath)) {
+                throw new Exception("El archivo temporal del PDF no existe: $tempPdfPath");
             }
             
             // Obtener información del usuario
@@ -43,7 +102,7 @@ class PackRequirement {
                 throw new Exception("Usuario no encontrado");
             }
             
-            // Validar si el documento SAP ya existe
+            // Validar si el documento SAP ya existe (segunda capa de seguridad)
             $checkStmt = $this->connection->prepare("SELECT COUNT(*) as count FROM nres WHERE sap_document_number = ? AND requirement_type = 'PackR'");
             $checkStmt->bind_param('s', $data['sap_document_number']);
             $checkStmt->execute();
@@ -56,13 +115,13 @@ class PackRequirement {
             // Guardar PDF en uploads
             $uploadDir = __DIR__ . '/../../uploads/packr/';
             if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
+                mkdir($uploadDir, 0777, true);
             }
             
             $pdfFileName = 'SAP_' . $data['sap_document_number'] . '_' . time() . '.pdf';
             $pdfDestination = $uploadDir . $pdfFileName;
             
-            if (!copy($pdfPath, $pdfDestination)) {
+            if (!copy($tempPdfPath, $pdfDestination)) {
                 $error = error_get_last();
                 throw new Exception("Error al guardar el PDF en $pdfDestination: " . ($error['message'] ?? 'Desconocido'));
             }
@@ -71,30 +130,20 @@ class PackRequirement {
             $this->connection->begin_transaction();
             
             try {
+                $rate = (float)($data['exchange_rate'] ?? 20.0);
+                
                 foreach ($data['items'] as $item) {
-                    // Generar número de PackR
                     $packrNumber = $this->generatePackRNumber();
                     
-                    // Convertir precio a USD si es MXN
-                    $unitPriceUsd = $item['unit_price'];
-                    $unitPriceMxn = $item['unit_price'];
+                    // Convertir precio a USD si es MXN o MXP
+                    $unitPrice = (float)$item['unit_price'];
+                    $unitPriceUsd = $unitPrice;
+                    $unitPriceMxn = $unitPrice;
                     
                     if ($data['currency'] === 'MXN' || $data['currency'] === 'MXP') {
-                        // Obtener tipo de cambio del mes actual
-                        require_once __DIR__ . '/ExchangeRate.php';
-                        $exchangeRate = new ExchangeRate();
-                        $currentPeriod = $exchangeRate->getCurrentMonthPeriod();
-                        $rate = $exchangeRate->getRateForPeriod($currentPeriod);
-                        
-                        if ($rate === null) {
-                            throw new Exception("No hay tipo de cambio configurado para el mes actual");
-                        }
-                        
-                        $unitPriceUsd = round($item['unit_price'] / $rate, 2);
+                        $unitPriceUsd = round($unitPrice / $rate, 2);
                     } else {
-                        // Asumir que ya está en USD
-                        $rate = 20.0; // Valor por defecto
-                        $unitPriceMxn = round($item['unit_price'] * $rate, 2);
+                        $unitPriceMxn = round($unitPrice * $rate, 2);
                     }
                     
                     $stmt = $this->connection->prepare("
@@ -139,6 +188,15 @@ class PackRequirement {
                     
                     $reason = ($data['comments'] ?? 'Material de empaque') . ' - SAP Doc: ' . $data['sap_document_number'];
                     
+                    // Asegurar que needed_date tenga formato Y-m-d
+                    $neededDate = $item['needed_date'];
+                    if (strpos($neededDate, '/') !== false) {
+                        $dateObj = DateTime::createFromFormat('d/m/Y', $neededDate);
+                        if ($dateObj) {
+                            $neededDate = $dateObj->format('Y-m-d');
+                        }
+                    }
+                    
                     $stmt->bind_param(
                         'ssissiddsssss',
                         $data['sap_document_number'],
@@ -149,7 +207,7 @@ class PackRequirement {
                         $item['quantity'],
                         $unitPriceUsd,
                         $unitPriceMxn,
-                        $item['needed_date'],
+                        $neededDate,
                         $item['department'],
                         $item['project'],
                         $reason,
@@ -162,6 +220,12 @@ class PackRequirement {
                 }
                 
                 $this->connection->commit();
+                
+                // Intentar borrar el PDF temporal de forma segura
+                if (strpos($tempPdfPath, '/temp/') !== false && file_exists($tempPdfPath)) {
+                    unlink($tempPdfPath);
+                }
+                
                 return true;
                 
             } catch (Exception $e) {
@@ -169,6 +233,19 @@ class PackRequirement {
                 throw $e;
             }
             
+        } catch (Exception $e) {
+            error_log("[PackRequirement] Error creando desde datos de vista previa: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Crea un PackR desde un PDF de SAP (Legacy wrapper)
+     */
+    public function createFromPdf(string $pdfPath, int $userId): bool {
+        try {
+            $data = $this->parsePdfForPreview($pdfPath);
+            return $this->createFromPreviewData($data, $pdfPath, $userId);
         } catch (Exception $e) {
             error_log("[PackRequirement] Error creando desde PDF: " . $e->getMessage());
             throw $e;

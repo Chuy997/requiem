@@ -16,6 +16,33 @@ class PackRequirementController {
      */
     public function createFromPdfUpload(array $fileData, int $userId): array {
         try {
+            $parseResult = $this->parseUpload($fileData);
+            if (!$parseResult['success']) {
+                return $parseResult;
+            }
+            
+            $tempPdfPath = __DIR__ . '/../../uploads/packr/temp/' . $parseResult['temp_pdf'];
+            
+            // Simular confirmación directa (para compatibilidad legacy)
+            $confirmData = $parseResult['data'];
+            return $this->confirmUpload(array_merge($confirmData, [
+                'temp_pdf' => $parseResult['temp_pdf']
+            ]), $userId);
+            
+        } catch (Exception $e) {
+            error_log("[PackRequirementController] Error: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Sube un PDF a la carpeta temporal y lo procesa para generar la vista previa
+     */
+    public function parseUpload(array $fileData): array {
+        try {
             // Validar que se subió un archivo
             if (!isset($fileData['tmp_name']) || empty($fileData['tmp_name'])) {
                 throw new Exception("No se recibió ningún archivo");
@@ -35,8 +62,54 @@ class PackRequirementController {
                 throw new Exception("El archivo es demasiado grande (máximo 10MB)");
             }
             
-            // Crear PackR desde el PDF
-            $success = $this->model->createFromPdf($fileData['tmp_name'], $userId);
+            // Crear directorio temporal si no existe
+            $tempDir = __DIR__ . '/../../uploads/packr/temp/';
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0777, true);
+            }
+            
+            $tempFileName = 'temp_' . time() . '_' . uniqid() . '.pdf';
+            $tempPath = $tempDir . $tempFileName;
+            
+            if (!copy($fileData['tmp_name'], $tempPath)) {
+                throw new Exception("Error al guardar archivo temporal de subida");
+            }
+            
+            $parsedData = $this->model->parsePdfForPreview($tempPath);
+            
+            return [
+                'success' => true,
+                'temp_pdf' => $tempFileName,
+                'data' => $parsedData
+            ];
+            
+        } catch (Exception $e) {
+            // Registrar fallo en log de diagnóstico si existía el archivo temporal o el subido
+            $fileToLog = $fileData['tmp_name'] ?? null;
+            if ($fileToLog && file_exists($fileToLog)) {
+                PdfParser::logFailedParse($fileToLog, $e->getMessage());
+            }
+            
+            error_log("[PackRequirementController] Error al parsear subida: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Confirma la creación definitiva de los PackR a partir de los datos validados
+     */
+    public function confirmUpload(array $postData, int $userId): array {
+        try {
+            if (empty($postData['temp_pdf'])) {
+                throw new Exception("Falta la referencia al archivo temporal del PDF.");
+            }
+            
+            $tempPdfPath = __DIR__ . '/../../uploads/packr/temp/' . basename($postData['temp_pdf']);
+            
+            $success = $this->model->createFromPreviewData($postData, $tempPdfPath, $userId);
             
             if ($success) {
                 return [
@@ -46,12 +119,11 @@ class PackRequirementController {
             } else {
                 return [
                     'success' => false,
-                    'message' => 'Error al procesar el PDF'
+                    'message' => 'Error al procesar la confirmación'
                 ];
             }
-            
         } catch (Exception $e) {
-            error_log("[PackRequirementController] Error: " . $e->getMessage());
+            error_log("[PackRequirementController] Error en confirmación: " . $e->getMessage());
             return [
                 'success' => false,
                 'message' => $e->getMessage()

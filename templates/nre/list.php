@@ -160,22 +160,22 @@ foreach ($nres as $nre) {
                 $urlParams = $_GET;
                 ?>
                 
-                <?php if ($includeCompleted): ?>
-                    <?php
-                    $hideParams = $urlParams;
-                    $hideParams['hide_completed'] = 1;
-                    unset($hideParams['page']); // Reiniciar página al cambiar filtro
-                    ?>
-                    <a href="index.php?<?= http_build_query($hideParams) ?>" class="btn btn-outline-secondary">
-                        <i class="bi bi-eye-slash"></i> Ocultar Completados
-                    </a>
-                <?php else: ?>
+                <?php if (!$includeCompleted): ?>
                     <?php
                     $showParams = $urlParams;
-                    unset($showParams['hide_completed'], $showParams['page']);
+                    $showParams['show_completed'] = 1;
+                    unset($showParams['page']);
                     ?>
                     <a href="index.php?<?= http_build_query($showParams) ?>" class="btn btn-outline-secondary">
                         <i class="bi bi-eye"></i> Ver Completados
+                    </a>
+                <?php else: ?>
+                    <?php
+                    $hideParams = $urlParams;
+                    unset($hideParams['show_completed'], $hideParams['page']);
+                    ?>
+                    <a href="index.php?<?= http_build_query($hideParams) ?>" class="btn btn-outline-secondary">
+                        <i class="bi bi-eye-slash"></i> Ocultar Completados
                     </a>
                 <?php endif; ?>
             </div>

@@ -73,8 +73,8 @@ class PdfParser {
         
         foreach ($lines as $line) {
             // Buscar línea principal del item (empieza con código EXP...)
-            // Regex ajustada para espacios múltiples
-            if (preg_match('/^\s*([A-Z0-9\-]+)\s+(.+?)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+([\d,\.]+)\s+([\d,\.]+)(?:\s*[A-Z]{3})?\s+([A-Z_]+)\s+([A-Z0-9]+)\s+([\d,\.]+)(?:\s*[A-Z]{3})?/i', $line, $matches)) {
+            // Regex ajustada para espacios múltiples, símbolo de moneda opcional, y departamento/proyecto opcionales
+            if (preg_match('/^\s*([A-Z0-9\-]+)\s+(.+?)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+([\d,\.]+)\s+\$?\s*([\d,\.]+)(?:\s*[A-Z]{3})?\s+(?:([A-Z_]+)\s+)?(?:([A-Z0-9]+)\s+)?\$?\s*([\d,\.]+)(?:\s*[A-Z]{3})?/i', $line, $matches)) {
                 
                 // Si había un item anterior, guardarlo
                 if ($currentItem) {
@@ -98,8 +98,8 @@ class PdfParser {
                     'needed_date' => DateTime::createFromFormat('d/m/Y', $matches[3])->format('Y-m-d'),
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
-                    'department' => $matches[6],
-                    'project' => $matches[7],
+                    'department' => $matches[6] ?? null,
+                    'project' => $matches[7] ?? null,
                     'total' => $total,
                     'currency' => $data['currency']
                 ];
@@ -107,7 +107,7 @@ class PdfParser {
             // Si es una línea de continuación de descripción (indentada y sin fecha/cantidades)
             elseif ($currentItem && preg_match('/^\s{20,}(.+)$/', $line, $matches)) {
                 // Verificar que no sea parte de los totales o footer
-                if (!preg_match('/SUBTOTAL|IMPUESTO|TOTAL|COMENTARIOS|NOMBRE Y FIRMA/i', $line)) {
+                if (!preg_match('/SUBTOTAL|IMPUESTO|TOTAL|COMENTARIOS|NOMBRE Y FIRMA|Página|Page/i', $line)) {
                     $descPart = trim($matches[1]);
                     // Evitar agregar basura
                     if (strlen($descPart) > 0) {
@@ -129,15 +129,15 @@ class PdfParser {
         }
         
         // Extraer totales
-        if (preg_match('/PETICIÓN SUBTOTAL:\s+([\d,\.]+)\s*USD/i', $text, $matches)) {
+        if (preg_match('/PETICIÓN SUBTOTAL:\s+\$?\s*([\d,\.]+)(?:\s*[A-Z]{3})?/i', $text, $matches)) {
             $data['subtotal'] = (float)str_replace(',', '', $matches[1]);
         }
         
-        if (preg_match('/IMPUESTO:\s+([\d,\.]+)\s*USD/i', $text, $matches)) {
+        if (preg_match('/IMPUESTO:\s+\$?\s*([\d,\.]+)(?:\s*[A-Z]{3})?/i', $text, $matches)) {
             $data['tax'] = (float)str_replace(',', '', $matches[1]);
         }
         
-        if (preg_match('/IMPORTE TOTAL:\s+([\d,\.]+)\s*USD/i', $text, $matches)) {
+        if (preg_match('/IMPORTE TOTAL:\s+\$?\s*([\d,\.]+)(?:\s*[A-Z]{3})?/i', $text, $matches)) {
             $data['total'] = (float)str_replace(',', '', $matches[1]);
         }
         
@@ -161,6 +161,45 @@ class PdfParser {
         } catch (Exception $e) {
             error_log("Error validando formato SAP: " . $e->getMessage());
             return false;
+        }
+    }
+    
+    /**
+     * Registra un fallo en el procesamiento de un PDF para depuración
+     */
+    public static function logFailedParse(string $pdfPath, string $reason): void {
+        try {
+            $logDir = __DIR__ . '/../../uploads/packr/logs/';
+            if (!is_dir($logDir)) {
+                mkdir($logDir, 0777, true);
+            }
+            
+            $timestamp = time();
+            $baseName = pathinfo($pdfPath, PATHINFO_FILENAME);
+            $logFileName = 'fail_' . $timestamp . '_' . $baseName . '.log';
+            $pdfCopyName = 'fail_' . $timestamp . '_' . $baseName . '.pdf';
+            
+            // Copiar el archivo PDF para análisis
+            copy($pdfPath, $logDir . $pdfCopyName);
+            
+            // Intentar extraer texto
+            $text = '';
+            try {
+                $text = self::extractText($pdfPath);
+            } catch (Exception $e) {
+                $text = "[Error extrayendo texto: " . $e->getMessage() . "]";
+            }
+            
+            $logContent = "Fecha: " . date('Y-m-d H:i:s') . "\n";
+            $logContent .= "Razón de Falla: " . $reason . "\n";
+            $logContent .= "Archivo Original: " . basename($pdfPath) . "\n";
+            $logContent .= "----------------------------------------\n";
+            $logContent .= "Texto Extraído:\n";
+            $logContent .= $text;
+            
+            file_put_contents($logDir . $logFileName, $logContent);
+        } catch (Exception $e) {
+            error_log("No se pudo registrar el log de fallo de parseo: " . $e->getMessage());
         }
     }
 }

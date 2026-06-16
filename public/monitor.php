@@ -12,8 +12,8 @@ $isCompras = false;
 $canViewAll = true;
 $user_id = 0; // ID Dummy para bypass seguro
 
-$includeCompleted = !isset($_GET['hide_completed']);
-$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+$includeCompleted = isset($_GET['show_completed']);
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($page - 1) * $limit;
 
