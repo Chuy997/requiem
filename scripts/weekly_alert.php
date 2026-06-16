@@ -86,7 +86,7 @@ try {
         logAlert("=== Fin del proceso ===");
         exit(0);
     }
-} catch (Exception $e) {
+} catch (\Exception $e) {
     logAlert("ERROR DB: " . $e->getMessage());
     exit(1);
 }
@@ -342,10 +342,7 @@ try {
     $mail = new PHPMailer(true);
 
     // Configuración SMTP (mismo patrón que EmailService.php)
-    $mail->SMTPDebug  = 0;
-    $mail->DebugOutput = function ($str) {
-        file_put_contents(ROOT_PATH . '/logs/smtp_debug.log', "SMTP: $str\n", FILE_APPEND);
-    };
+    $mail->SMTPDebug = 0; // 0 = sin debug output
 
     $mail->isSMTP();
     $mail->Host       = $_ENV['SMTP_HOST'];
@@ -380,7 +377,7 @@ try {
 
     logAlert("✅ Correo enviado correctamente a jesus.muro@xinya-la.com ({$total} requerimientos).");
 } catch (Exception $e) {
-    logAlert("❌ Error al enviar correo: " . $mail->ErrorInfo);
+    logAlert("❌ Error al enviar correo: " . $e->getMessage());
     exit(1);
 }
 
